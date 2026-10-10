@@ -1,10 +1,11 @@
-import { motion } from "framer-motion";
+import { motion, useTransform } from "framer-motion";
 import { StorySection, type SceneContext } from "../story/StorySection";
 import { Beat } from "../story/Beat";
 import { useDiscrete } from "../../hooks/useDiscrete";
 import { setChainChoice, useChainChoices, type ChainChoice } from "../../state/chainChoices";
 import { useSound } from "../../context/SoundContext";
 import { CHAIN_STEPS } from "../../data/content";
+import { asset } from "../../utils/asset";
 import { cn } from "../../utils/cn";
 
 type Choice = ChainChoice;
@@ -37,11 +38,13 @@ export default function Chapter08SecondPerson() {
  * scrolling always moves the story on, and a choice can be changed at any time
  * while its step is in view.
  */
-function ChoiceScene({ progress }: SceneContext) {
+function ChoiceScene({ progress, reduced }: SceneContext) {
   const sound = useSound();
   const active = useDiscrete(progress, activeStepAt);
   // Choices live in a shared store so they persist across Prev/Next and mode switches.
   const choices = useChainChoices();
+  // The street behind the choices, held back so the question and the two answers stay legible.
+  const zoom = useTransform(progress, [0, 1], reduced ? [1, 1] : [1.06, 1]);
 
   const choose = (i: number, choice: Choice) => {
     setChainChoice(i, choice);
@@ -50,7 +53,15 @@ function ChoiceScene({ progress }: SceneContext) {
   };
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-charcoal px-5">
+    <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-charcoal px-5">
+      <motion.img
+        src={asset("images/second-person.jpg")}
+        alt="Chapter artwork for The Second Person: the street where three small choices are made."
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ scale: zoom, filter: "grayscale(0.35) brightness(0.45) contrast(1.05)" }}
+      />
+      <div className="absolute inset-0 bg-charcoal/75" />
+      <div className="absolute inset-0 bg-gradient-to-b from-charcoal/70 via-transparent to-charcoal/85" />
       <div className="grain absolute inset-0" />
 
       {CHAIN_STEPS.map((step, i) => {
