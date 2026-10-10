@@ -15,21 +15,40 @@ interface BeatProps {
 }
 
 /**
- * Fades an element in across [from, to] and out again. All motion is a
- * MotionValue transform, so scrolling never re-renders React.
+ * Fades an element in across [from, to] and out again. Without `to` it fades in
+ * and then stays on screen to the end of the section.
+ *
+ * Framer Motion turns a scroll-linked transform into a native (WAAPI) animation
+ * and uses the input range as keyframe offsets. Browsers reject offsets outside
+ * [0, 1], which throws during mount and leaves the page blank. So every input
+ * point here is kept within [0, 1] and in ascending order.
  */
 export function Beat({ progress, from, to, rise = 14, className, children }: BeatProps) {
-  const end = to ?? 2;
-  const fade = Math.min(0.035, (end - from) / 4);
   // An element that starts at the very top of the story is visible from the first frame,
   // so the opening never shows an empty black screen.
   const startsVisible = from <= 0;
-  const opacity = useTransform(
-    progress,
-    startsVisible ? [0, end - fade, end] : [from, from + fade, end - fade, end],
-    startsVisible ? [1, 1, 0] : [0, 1, 1, 0]
-  );
-  const y = useTransform(progress, startsVisible ? [0, 1] : [from, from + fade], startsVisible ? [0, 0] : [rise, 0]);
+  const fadeIn = to === undefined ? 0.035 : Math.min(0.035, (to - from) / 4);
+
+  const opacityIn: number[] = [];
+  const opacityOut: number[] = [];
+  if (startsVisible) {
+    opacityIn.push(0);
+    opacityOut.push(1);
+  } else {
+    opacityIn.push(from, from + fadeIn);
+    opacityOut.push(0, 1);
+  }
+  if (to !== undefined) {
+    opacityIn.push(to - fadeIn, to);
+    opacityOut.push(1, 0);
+  } else if (opacityIn.length === 1) {
+    opacityIn.push(1);
+    opacityOut.push(1);
+  }
+  const opacity = useTransform(progress, opacityIn, opacityOut);
+
+  const y = useTransform(progress, [from, Math.min(1, from + fadeIn)], [startsVisible ? 0 : rise, 0]);
+
   return (
     <motion.div style={{ opacity, y }} className={cn(className)}>
       {children}
