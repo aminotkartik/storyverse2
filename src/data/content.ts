@@ -1,3 +1,5 @@
+import type { PedestrianKind } from "../components/figures/Figures";
+
 export const CHAPTERS = [
   { id: 1, title: "The Crossing" },
   { id: 2, title: "Fifteen Seconds" },
@@ -11,105 +13,57 @@ export const CHAPTERS = [
   { id: 10, title: "The City" },
 ] as const;
 
-export interface Pedestrian {
+export interface StorySectionMeta {
   id: string;
+  title: string;
+  number?: number;
+}
+
+/** Every section of the document, in reading order. Drives the chapter index and menu. */
+export const SECTIONS: readonly StorySectionMeta[] = [
+  { id: "opening", title: "Opening" },
+  ...CHAPTERS.map((c) => ({
+    id: `chapter-${String(c.id).padStart(2, "0")}`,
+    title: c.title,
+    number: c.id,
+  })),
+  { id: "commitments", title: "What Will You Not Do Today?" },
+  { id: "closing", title: "Closing" },
+];
+
+export interface Pedestrian {
+  id: PedestrianKind;
   seconds: number;
   label: string;
   desc: string;
-  speed: number; // relative crossing speed, 1 = fastest
-  outcome: "safe" | "rushed" | "stranded";
 }
 
-export const PEDESTRIANS: Pedestrian[] = [
-  {
-    id: "student",
-    seconds: 11,
-    label: "Young Student",
-    desc: "Backpack, headphones, already thinking about class.",
-    speed: 1,
-    outcome: "safe",
-  },
-  {
-    id: "groceries",
-    seconds: 17,
-    label: "Person Carrying Groceries",
-    desc: "Two bags, one shifting grip, one eye on the signal.",
-    speed: 0.72,
-    outcome: "stranded",
-  },
-  {
-    id: "parent",
-    seconds: 24,
-    label: "Parent & Child",
-    desc: "A small hand held tightly. Small legs, small steps.",
-    speed: 0.5,
-    outcome: "stranded",
-  },
-  {
-    id: "elderly",
-    seconds: 27,
-    label: "Elderly Pedestrian",
-    desc: "Steady, unhurried, out of time before halfway.",
-    speed: 0.42,
-    outcome: "stranded",
-  },
-  {
-    id: "mobility",
-    seconds: 31,
-    label: "Pedestrian with Mobility Difficulty",
-    desc: "Every step costs more than the signal allows.",
-    speed: 0.36,
-    outcome: "stranded",
-  },
+/** Illustrative crossing times from the project's story, not measurements. */
+export const PEDESTRIANS: readonly Pedestrian[] = [
+  { id: "student", seconds: 11, label: "Young Student", desc: "Backpack, headphones, already thinking about class." },
+  { id: "groceries", seconds: 17, label: "Person Carrying Groceries", desc: "Two bags, one shifting grip, one eye on the signal." },
+  { id: "parent", seconds: 24, label: "Parent & Child", desc: "A small hand held tightly. Small legs, small steps." },
+  { id: "elderly", seconds: 27, label: "Elderly Pedestrian", desc: "Steady, unhurried, out of time before halfway." },
+  { id: "mobility", seconds: 31, label: "Pedestrian with Mobility Difficulty", desc: "Every step costs more than the signal allows." },
 ];
 
 export interface Hotspot {
   id: string;
-  x: number; // percentage
-  y: number;
+  x: number; // percentage of image width
+  y: number; // percentage of image height
   label: string;
   reveal: string;
 }
 
-export const HOTSPOTS: Hotspot[] = [
-  {
-    id: "footpath",
-    x: 20,
-    y: 62,
-    label: "Car on footpath",
-    reveal: "Someone gained convenience.\nSomeone lost a path.",
-  },
-  {
-    id: "ramp",
-    x: 72,
-    y: 70,
-    label: "Blocked ramp",
-    reveal: "For one person, this is parking.\nFor another, this is a wall.",
-  },
-  {
-    id: "zebra",
-    x: 48,
-    y: 52,
-    label: "Car on zebra crossing",
-    reveal: "The crossing exists.\nThe priority doesn't.",
-  },
-  {
-    id: "garbage",
-    x: 85,
-    y: 40,
-    label: "Garbage beside the bin",
-    reveal: "Public space becomes\nnobody's space.",
-  },
-  {
-    id: "honk",
-    x: 32,
-    y: 28,
-    label: "Honking driver",
-    reveal: "Someone is trying\nto save seconds.",
-  },
+export const HOTSPOTS: readonly Hotspot[] = [
+  { id: "footpath", x: 20, y: 62, label: "Car on footpath", reveal: "Someone gained convenience.\nSomeone lost a path." },
+  { id: "ramp", x: 72, y: 70, label: "Blocked ramp", reveal: "For one person, this is parking.\nFor another, this is a wall." },
+  { id: "zebra", x: 48, y: 52, label: "Car on zebra crossing", reveal: "The crossing exists.\nThe priority doesn't." },
+  { id: "garbage", x: 85, y: 40, label: "Garbage beside the bin", reveal: "Public space becomes\nnobody's space." },
+  { id: "honk", x: 32, y: 28, label: "Honking driver", reveal: "Someone is trying\nto save seconds." },
 ];
 
-export const AVERAGE_FRAGMENTS = [
+export const AVERAGE_FRAGMENTS: readonly string[] = [
   "child",
   "elderly person",
   "parent",
@@ -121,12 +75,7 @@ export const AVERAGE_FRAGMENTS = [
   "everyone",
 ];
 
-export interface NotebookPage {
-  seconds: number;
-  label: string;
-}
-
-export const NOTEBOOK_PAGES: NotebookPage[] = [
+export const NOTEBOOK_PAGES: readonly { seconds: number; label: string }[] = [
   { seconds: 11, label: "young student" },
   { seconds: 17, label: "groceries" },
   { seconds: 24, label: "parent + child" },
@@ -134,7 +83,11 @@ export const NOTEBOOK_PAGES: NotebookPage[] = [
   { seconds: 31, label: "mobility difficulty" },
 ];
 
-export const CIVIC_STATS = [
+/**
+ * Tara's illustrative tally from the story. These are story data, not a survey,
+ * and the interface labels them that way.
+ */
+export const CIVIC_STATS: readonly { label: string; value: number }[] = [
   { label: "FOOTPATH BLOCKED", value: 0.92 },
   { label: "CROSSING BLOCKED", value: 0.81 },
   { label: "RAMP BLOCKED", value: 0.88 },
@@ -155,7 +108,7 @@ export interface ChainStep {
   consequence: string;
 }
 
-export const CHAIN_STEPS: ChainStep[] = [
+export const CHAIN_STEPS: readonly ChainStep[] = [
   {
     prompt: "A motorcyclist wants to stop on the accessibility ramp, just for a minute.",
     careless: "Just for a minute.",
@@ -176,21 +129,15 @@ export const CHAIN_STEPS: ChainStep[] = [
   },
 ];
 
-export const ENDING_CHOICES = [
-  "I won't block a footpath.",
-  "I won't park on an accessibility ramp.",
-  "I won't stop on a zebra crossing.",
-  "I won't honk at someone who needs more time.",
-  "I'll leave public spaces better than I found them.",
-];
+export interface Commitment {
+  id: string;
+  text: string;
+}
 
-export const SEED_NOTES = [
-  "I won't block a footpath.",
-  "I'll leave public spaces better than I found them.",
-  "I won't honk at someone who needs more time.",
-  "I won't park on an accessibility ramp.",
-  "I won't stop on a zebra crossing.",
-  "I'll wait the extra five seconds.",
-  "I won't block a footpath.",
-  "I won't honk at someone who needs more time.",
+export const COMMITMENTS: readonly Commitment[] = [
+  { id: "footpath", text: "I won't block a footpath." },
+  { id: "ramp", text: "I won't park on an accessibility ramp." },
+  { id: "zebra", text: "I won't stop on a zebra crossing." },
+  { id: "honk", text: "I won't honk at someone who needs more time." },
+  { id: "spaces", text: "I'll leave public spaces better than I found them." },
 ];

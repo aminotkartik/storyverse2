@@ -1,223 +1,265 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+const MASTER_LEVEL = 0.6;
 
 /**
- * A tiny synthesized sound engine built on the Web Audio API.
- * No external audio files are used — every sound (traffic hum, honks,
- * heartbeat, signal beep, page turns) is generated procedurally so the
- * experience stays lightweight and deploy-anywhere.
+ * Procedural Web Audio engine. Nothing is created until the visitor opts in
+ * via the sound toggle, and every method is a no-op while sound is off.
+ * Discrete one-shot sounds create short-lived nodes; the only long-lived node
+ * is the single ambient bed, which is torn down on disable and on leaving the
+ * scene that started it.
  */
 class SoundEngine {
-  ctx: AudioContext | null = null;
-  master: GainNode | null = null;
-  ambientGain: GainNode | null = null;
-  ambientNodes: AudioNode[] = [];
-  heartbeatInterval: number | null = null;
+  private ctx: AudioContext | null = null;
+  private master: GainNode | null = null;
+  private noise: AudioBuffer | null = null;
+  private brown: AudioBuffer | null = null;
+  private ambient: { src: AudioBufferSourceNode; filter: BiquadFilterNode; gain: GainNode } | null = null;
+  private enabled = false;
 
-  ensureCtx() {
-    if (!this.ctx) {
-      const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      this.ctx = new AC();
-      this.master = this.ctx.createGain();
-      this.master.gain.value = 0.6;
-      this.master.connect(this.ctx.destination);
+  setEnabled(on: boolean): void {
+    this.enabled = on;
+    if (on) {
+      const ctx = this.ensure();
+      this.master?.gain.setTargetAtTime(MASTER_LEVEL, ctx.currentTime, 0.05);
+    } else {
+      if (this.ctx && this.master) this.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.03);
+      this.stopAmbient();
     }
-    if (this.ctx.state === "suspended") this.ctx.resume();
-    return this.ctx;
   }
 
-  setMasterVolume(v: number) {
-    if (this.master) this.master.gain.setTargetAtTime(v, this.ctx!.currentTime, 0.05);
-  }
-
-  private noiseBuffer(ctx: AudioContext, duration: number) {
-    const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    return buffer;
-  }
-
-  honk(intensity = 1) {
-    const ctx = this.ensureCtx();
-    const osc = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
+  honk(intensity = 1): void {
+    if (!this.enabled) return;
+    const ctx = this.ensure();
+    const out = this.master!;
+    const now = ctx.currentTime;
     const gain = ctx.createGain();
-    osc.type = "sawtooth";
-    osc2.type = "square";
-    osc.frequency.value = 220 * intensity;
-    osc2.frequency.value = 164 * intensity;
-    gain.gain.value = 0;
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.18 * intensity, ctx.currentTime + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-    osc.connect(gain);
-    osc2.connect(gain);
-    gain.connect(this.master!);
-    osc.start();
-    osc2.start();
-    osc.stop(ctx.currentTime + 0.42);
-    osc2.stop(ctx.currentTime + 0.42);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.18 * intensity, now + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    gain.connect(out);
+    for (const [type, freq] of [
+      ["sawtooth", 220],
+      ["square", 164],
+    ] as const) {
+      const osc = ctx.createOscillator();
+      osc.type = type;
+      osc.frequency.value = freq * intensity;
+      osc.connect(gain);
+      osc.start(now);
+      osc.stop(now + 0.42);
+    }
   }
 
-  beep(freq = 880) {
-    const ctx = this.ensureCtx();
+  beep(freq = 880): void {
+    if (!this.enabled) return;
+    const ctx = this.ensure();
+    const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "square";
     osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
-    osc.connect(gain);
-    gain.connect(this.master!);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.16);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+    osc.connect(gain).connect(this.master!);
+    osc.start(now);
+    osc.stop(now + 0.16);
   }
 
-  heartbeatPulse() {
-    const ctx = this.ensureCtx();
+  heartbeat(): void {
+    if (!this.enabled) return;
+    const ctx = this.ensure();
+    const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "sine";
     osc.frequency.value = 55;
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
-    osc.connect(gain);
-    gain.connect(this.master!);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.32);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.35, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+    osc.connect(gain).connect(this.master!);
+    osc.start(now);
+    osc.stop(now + 0.32);
   }
 
-  pageTurn() {
-    const ctx = this.ensureCtx();
-    const buffer = this.noiseBuffer(ctx, 0.3);
+  pageTurn(): void {
+    if (!this.enabled) return;
+    const ctx = this.ensure();
+    const now = ctx.currentTime;
     const src = ctx.createBufferSource();
-    src.buffer = buffer;
+    src.buffer = this.noiseBuffer(ctx);
     const filter = ctx.createBiquadFilter();
     filter.type = "bandpass";
     filter.frequency.value = 2200;
     filter.Q.value = 0.6;
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.22, ctx.currentTime + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
-    src.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.master!);
-    src.start();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.22, now + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+    src.connect(filter).connect(gain).connect(this.master!);
+    src.start(now, 0, 0.3);
   }
 
-  tear() {
-    const ctx = this.ensureCtx();
-    const buffer = this.noiseBuffer(ctx, 0.5);
+  tear(): void {
+    if (!this.enabled) return;
+    const ctx = this.ensure();
+    const now = ctx.currentTime;
     const src = ctx.createBufferSource();
-    src.buffer = buffer;
+    src.buffer = this.noiseBuffer(ctx);
     const filter = ctx.createBiquadFilter();
     filter.type = "highpass";
     filter.frequency.value = 1500;
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
-    src.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.master!);
-    src.start();
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+    src.connect(filter).connect(gain).connect(this.master!);
+    src.start(now, 0, 0.5);
   }
 
-  chime() {
-    const ctx = this.ensureCtx();
+  chime(): void {
+    if (!this.enabled) return;
+    const ctx = this.ensure();
     [523.25, 659.25, 783.99].forEach((f, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+      const t = ctx.currentTime + i * 0.12;
       osc.type = "sine";
       osc.frequency.value = f;
-      const t = ctx.currentTime + i * 0.12;
       gain.gain.setValueAtTime(0.0001, t);
       gain.gain.linearRampToValueAtTime(0.14, t + 0.05);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
-      osc.connect(gain);
-      gain.connect(this.master!);
+      osc.connect(gain).connect(this.master!);
       osc.start(t);
       osc.stop(t + 1.2);
     });
   }
 
-  startAmbient(trafficLevel = 0.2) {
-    const ctx = this.ensureCtx();
-    this.stopAmbient();
-    const buffer = this.noiseBuffer(ctx, 2);
-    buffer.getChannelData(0).forEach((_, i, arr) => {
-      // brownish noise for a low rumble of distant traffic
-      const prev = i > 0 ? arr[i - 1] : 0;
-      arr[i] = (prev + (Math.random() * 2 - 1) * 0.06) * 0.98;
-    });
+  /** Starts the single ambient traffic bed, or retunes it if already playing. */
+  startAmbient(level = 0.12): void {
+    if (!this.enabled) return;
+    if (this.ambient) {
+      this.setAmbientLevel(level);
+      return;
+    }
+    const ctx = this.ensure();
     const src = ctx.createBufferSource();
-    src.buffer = buffer;
+    src.buffer = this.brownBuffer(ctx);
     src.loop = true;
     const filter = ctx.createBiquadFilter();
     filter.type = "lowpass";
     filter.frequency.value = 700;
-    this.ambientGain = ctx.createGain();
-    this.ambientGain.gain.value = trafficLevel;
-    src.connect(filter);
-    filter.connect(this.ambientGain);
-    this.ambientGain.connect(this.master!);
+    const gain = ctx.createGain();
+    gain.gain.value = 0.0001;
+    gain.gain.setTargetAtTime(level, ctx.currentTime, 0.4);
+    src.connect(filter).connect(gain).connect(this.master!);
     src.start();
-    this.ambientNodes = [src, filter, this.ambientGain];
+    this.ambient = { src, filter, gain };
   }
 
-  setAmbientLevel(level: number) {
-    if (this.ambientGain && this.ctx) {
-      this.ambientGain.gain.setTargetAtTime(level, this.ctx.currentTime, 0.4);
+  setAmbientLevel(level: number): void {
+    if (!this.enabled || !this.ambient || !this.ctx) return;
+    this.ambient.gain.gain.setTargetAtTime(level, this.ctx.currentTime, 0.4);
+  }
+
+  stopAmbient(): void {
+    if (!this.ambient) return;
+    const { src, filter, gain } = this.ambient;
+    this.ambient = null;
+    try {
+      src.stop();
+    } catch {
+      /* already stopped */
     }
+    src.disconnect();
+    filter.disconnect();
+    gain.disconnect();
   }
 
-  stopAmbient() {
-    this.ambientNodes.forEach((n) => {
-      try {
-        (n as AudioScheduledSourceNode).stop?.();
-      } catch {
-        /* already stopped */
+  private ensure(): AudioContext {
+    if (!this.ctx) {
+      const AC =
+        window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AC();
+      const master = ctx.createGain();
+      master.gain.value = 0;
+      master.connect(ctx.destination);
+      this.ctx = ctx;
+      this.master = master;
+    }
+    if (this.ctx.state === "suspended") void this.ctx.resume();
+    return this.ctx;
+  }
+
+  private noiseBuffer(ctx: AudioContext): AudioBuffer {
+    if (!this.noise) {
+      const buffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      this.noise = buffer;
+    }
+    return this.noise;
+  }
+
+  private brownBuffer(ctx: AudioContext): AudioBuffer {
+    if (!this.brown) {
+      const buffer = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < data.length; i++) {
+        last = (last + (Math.random() * 2 - 1) * 0.06) * 0.98;
+        data[i] = last;
       }
-      n.disconnect();
-    });
-    this.ambientNodes = [];
+      this.brown = buffer;
+    }
+    return this.brown;
   }
 }
 
-let engine: SoundEngine | null = null;
-function getEngine() {
-  if (!engine) engine = new SoundEngine();
-  return engine;
+export interface SoundApi {
+  enabled: boolean;
+  toggle: () => void;
+  honk: (intensity?: number) => void;
+  beep: (freq?: number) => void;
+  heartbeat: () => void;
+  pageTurn: () => void;
+  tear: () => void;
+  chime: () => void;
+  startAmbient: (level?: number) => void;
+  setAmbientLevel: (level: number) => void;
+  stopAmbient: () => void;
 }
 
-export function useSound() {
-  const [enabled, setEnabled] = useState(false);
-  const engineRef = useRef<SoundEngine>(getEngine());
+const engine = new SoundEngine();
 
-  useEffect(() => {
-    engineRef.current.setMasterVolume(enabled ? 0.6 : 0);
-    if (!enabled) engineRef.current.stopAmbient();
-  }, [enabled]);
+/** Owns the sound toggle state. Action functions are stable across renders. */
+export function useSoundController(): SoundApi {
+  const [enabled, setEnabled] = useState(false);
+  const enabledRef = useRef(false);
 
   const toggle = useCallback(() => {
-    engineRef.current.ensureCtx();
-    setEnabled((e) => !e);
+    const next = !enabledRef.current;
+    enabledRef.current = next;
+    engine.setEnabled(next);
+    setEnabled(next);
   }, []);
 
-  return {
-    enabled,
-    toggle,
-    honk: (i?: number) => enabled && engineRef.current.honk(i),
-    beep: (f?: number) => enabled && engineRef.current.beep(f),
-    heartbeat: () => enabled && engineRef.current.heartbeatPulse(),
-    pageTurn: () => enabled && engineRef.current.pageTurn(),
-    tear: () => enabled && engineRef.current.tear(),
-    chime: () => enabled && engineRef.current.chime(),
-    startAmbient: (level?: number) => enabled && engineRef.current.startAmbient(level),
-    setAmbientLevel: (level: number) => enabled && engineRef.current.setAmbientLevel(level),
-    stopAmbient: () => engineRef.current.stopAmbient(),
-  };
-}
+  useEffect(() => () => engine.stopAmbient(), []);
 
-export type SoundApi = ReturnType<typeof useSound>;
+  return useMemo<SoundApi>(
+    () => ({
+      enabled,
+      toggle,
+      honk: (intensity) => engine.honk(intensity),
+      beep: (freq) => engine.beep(freq),
+      heartbeat: () => engine.heartbeat(),
+      pageTurn: () => engine.pageTurn(),
+      tear: () => engine.tear(),
+      chime: () => engine.chime(),
+      startAmbient: (level) => engine.startAmbient(level),
+      setAmbientLevel: (level) => engine.setAmbientLevel(level),
+      stopAmbient: () => engine.stopAmbient(),
+    }),
+    [enabled, toggle]
+  );
+}

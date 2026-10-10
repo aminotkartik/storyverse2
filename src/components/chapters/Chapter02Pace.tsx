@@ -1,172 +1,143 @@
-import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  ChapterLabel,
-  ContinueButton,
-  FadeIn,
-  PedestrianFigure,
-  type PedestrianType,
-} from "../ui/Shared";
-import { PEDESTRIANS, type Pedestrian } from "../../data/content";
-import type { SoundApi } from "../../hooks/useSound";
+import { motion, useTransform, type MotionValue } from "framer-motion";
+import { StorySection, type SceneContext } from "../story/StorySection";
+import { Beat } from "../story/Beat";
+import { PedestrianFigure } from "../figures/Figures";
+import { useDiscrete } from "../../hooks/useDiscrete";
+import { PEDESTRIANS } from "../../data/content";
+import { envelope, progressIn } from "../../utils/motion";
+import { SIGNAL_SECONDS } from "../../utils/countdown";
 
-const SIGNAL_SECONDS = 15;
-const SIM_MS = 3600;
+const TWO_PI = Math.PI * 2;
+const LONGEST = PEDESTRIANS[PEDESTRIANS.length - 1].seconds;
 
-export default function Chapter02Pace({ onNext, sound }: { onNext: () => void; sound: SoundApi }) {
-  const [selected, setSelected] = useState<Pedestrian | null>(null);
-  const [timer, setTimer] = useState(SIGNAL_SECONDS);
-  const [progressPct, setProgressPct] = useState(0);
-  const [result, setResult] = useState<"running" | "safe" | "stranded" | null>(null);
-  const [viewed, setViewed] = useState<Set<string>>(new Set());
-  const rafRef = useRef<number | null>(null);
+/** Each profile gets its own window of scroll; windows never overlap. */
+const ROWS = PEDESTRIANS.map((p, i) => {
+  const start = 0.12 + i * 0.155;
+  return { ...p, start, end: start + 0.13 };
+});
+type Row = (typeof ROWS)[number];
 
-  const run = (p: Pedestrian) => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    setSelected(p);
-    setResult("running");
-    setTimer(SIGNAL_SECONDS);
-    setProgressPct(0);
-    sound.beep(900);
+/** Seconds of the signal that have passed for this row. */
+const elapsedFor = (v: number, row: Row): number => SIGNAL_SECONDS * progressIn(v, row.start, row.end);
+/** Share of the crossing completed within the signal window (capped at 1). */
+const positionFor = (v: number, row: Row): number => Math.min(1, elapsedFor(v, row) / row.seconds);
 
-    const finishesInTime = p.seconds <= SIGNAL_SECONDS && p.outcome !== "stranded";
-    const elapsedSeconds = finishesInTime ? p.seconds : SIGNAL_SECONDS;
-    const target = finishesInTime ? 100 : Math.min(96, (SIGNAL_SECONDS / p.seconds) * 100);
-    const start = performance.now();
-    const duration = SIM_MS * (elapsedSeconds / SIGNAL_SECONDS);
+/** The countdown shown in the header: 15 → 0 inside each profile's window. */
+function headerSecondsAt(v: number): number {
+  let current = SIGNAL_SECONDS;
+  for (const row of ROWS) {
+    if (v >= row.start) current = Math.max(0, SIGNAL_SECONDS - Math.floor(elapsedFor(v, row)));
+  }
+  return current;
+}
 
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      setProgressPct(t * target);
-      setTimer(Math.max(0, Math.round(SIGNAL_SECONDS - t * elapsedSeconds)));
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(step);
-      } else {
-        setResult(finishesInTime ? "safe" : "stranded");
-        if (!finishesInTime) sound.honk(1);
-        else sound.chime();
-        setViewed((v) => new Set(v).add(p.id));
-      }
-    };
-    rafRef.current = requestAnimationFrame(step);
-  };
+export default function Chapter02Pace() {
+  return (
+    <StorySection id="chapter-02" number={2} title="Fifteen Seconds" heightClass="h-[420vh]">
+      {(scene) => <ComparisonScene {...scene} />}
+    </StorySection>
+  );
+}
 
-  useEffect(() => () => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-  }, []);
+function ComparisonScene({ progress }: SceneContext) {
+  const seconds = useDiscrete(progress, headerSecondsAt);
+  const finalFade = useTransform(progress, [0.9, 0.95], [0, 0.85]);
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-y-auto bg-charcoal px-5 pt-20 pb-28 sm:px-12">
-      <ChapterLabel index={2} title="Fifteen Seconds" />
-      <div className="grain absolute inset-0 pointer-events-none" />
+    <div className="absolute inset-0 flex flex-col bg-charcoal">
+      <div className="grain absolute inset-0" />
 
-      <div className="relative z-10 mx-auto w-full max-w-3xl">
-        <FadeIn>
-          <p className="mb-8 text-center font-serif text-paper/70">
-            The signal gives everyone exactly the same window. Choose a pedestrian and watch their crossing.
+      <div className="relative z-10 flex items-start justify-between gap-6 px-5 pt-16 sm:px-14">
+        <Beat progress={progress} from={0} to={0.1} className="max-w-md">
+          <p className="font-serif text-base leading-snug text-paper/85 sm:text-lg">
+            The signal gives everyone exactly the same window. Five crossings, one after another.
           </p>
-        </FadeIn>
-
-        <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {PEDESTRIANS.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => run(p)}
-              className={`rounded-md border px-2 py-3 text-center transition ${
-                selected?.id === p.id
-                  ? "border-amber bg-amber/10"
-                  : "border-paper/20 hover:border-paper/50"
-              }`}
-            >
-              <div className="font-display text-xl text-amber">{p.seconds}s</div>
-              <div className="mt-1 font-serif text-[11px] leading-tight text-paper/70">{p.label}</div>
-              {viewed.has(p.id) && <div className="mt-1 text-[10px] text-paper/40">✓ seen</div>}
-            </button>
-          ))}
-        </div>
-
-        {/* crossing visualization */}
-        <div className="rounded-lg border border-paper/15 bg-ink/40 p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <span className="font-serif text-sm text-paper/60">
-              {selected ? selected.desc : "Select a pedestrian above to begin."}
-            </span>
-            <span
-              className={`font-display text-3xl ${
-                result === "stranded" || (selected && selected.seconds > SIGNAL_SECONDS && timer <= 5)
-                  ? "text-danger"
-                  : "text-paper"
-              }`}
-            >
-              {String(timer).padStart(2, "0")}
-            </span>
-          </div>
-
-          <div className="relative h-28 w-full overflow-hidden rounded-sm bg-ink/60 sm:h-32">
-            {/* Zebra stripes along the road surface */}
-            <div
-              className="absolute inset-x-0 bottom-2 h-14 opacity-50 sm:h-16"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, rgba(243,237,226,0.8) 0 18px, transparent 18px 36px)",
-              }}
-            />
-            {selected && (
-              <div
-                className="absolute bottom-3 -translate-x-1/2"
-                style={{ left: `${6 + (progressPct / 100) * 86}%` }}
-              >
-                <PedestrianFigure
-                  type={selected.id as PedestrianType}
-                  walking={result === "running"}
-                  progress={progressPct}
-                  stranded={result === "stranded"}
-                />
-              </div>
-            )}
-          </div>
-
-          <AnimatePresence mode="wait">
-            {result === "safe" && selected && (
-              <motion.p
-                key="safe"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-4 font-serif text-sm text-paper/80"
-              >
-                {selected.id === "student"
-                  ? "Made it with seconds to spare."
-                  : "Made it — just barely, heart pounding."}
-              </motion.p>
-            )}
-            {result === "stranded" && selected && (
-              <motion.p
-                key="stranded"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-4 font-serif text-sm text-danger"
-              >
-                Still on the road when the signal turned red. The crossing needed {selected.seconds} seconds.
-                The signal gave fifteen.
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <div className="mt-14 flex flex-col items-center gap-6 text-center">
-          <AnimatePresence>
-            {viewed.size > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-                <p className="font-display text-5xl text-paper sm:text-6xl">15 SEC</p>
-                <p className="font-serif text-lg text-paper/70 italic">
-                  “Equal does not always mean fair.”
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          {viewed.size > 0 && <ContinueButton onClick={onNext}>Look closer</ContinueButton>}
+        </Beat>
+        <div className="shrink-0 text-right">
+          <p className="font-display text-[11px] tracking-[0.3em] text-paper/60">SIGNAL</p>
+          <p
+            className={`font-display text-5xl leading-none sm:text-6xl ${seconds <= 5 ? "text-danger" : "text-paper"}`}
+            aria-label={`${seconds} seconds on the signal`}
+          >
+            {String(seconds).padStart(2, "0")}
+          </p>
         </div>
       </div>
+
+      <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-4 px-5 py-6 sm:px-10">
+        {ROWS.map((row) => (
+          <CrossingRow key={row.id} row={row} progress={progress} />
+        ))}
+      </div>
+
+      <p className="relative z-10 px-5 pb-5 text-center font-serif text-[11px] tracking-wide text-paper/45 sm:pb-8">
+        Crossing times are illustrative story values, not measurements.
+      </p>
+
+      <motion.div
+        className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-ink px-6 text-center"
+        style={{ opacity: finalFade }}
+      >
+        <Beat progress={progress} from={0.9}>
+          <p className="font-display text-4xl leading-tight tracking-wide text-paper uppercase sm:text-7xl">
+            Equal does not always mean fair.
+          </p>
+        </Beat>
+      </motion.div>
     </div>
   );
 }
+
+function CrossingRow({ row, progress }: { row: Row; progress: MotionValue<number> }) {
+  const x = useTransform(progress, (v) => `${positionFor(v, row) * 86}%`);
+  const phase = useTransform(progress, (v) => elapsedFor(v, row) * TWO_PI * 0.9);
+  const amp = useTransform(progress, (v) => envelope(v, row.start, row.end, 0.01) * (positionFor(v, row) < 1 ? 1 : 0));
+  const reveal = useTransform(progress, [row.start - 0.02, row.start + 0.01], [0, 1]);
+  const bar = useTransform(progress, [row.start, row.end], [0, row.seconds / LONGEST]);
+  const stranded = row.seconds > SIGNAL_SECONDS;
+
+  return (
+    <motion.div style={{ opacity: reveal }} className="w-full">
+      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3">
+        <p className="font-serif text-sm text-paper sm:text-base">
+          <span className="mr-2 font-display text-2xl text-amber sm:text-3xl">{row.seconds}s</span>
+          {row.label}
+        </p>
+        <p className="font-serif text-xs text-paper/60 italic">{row.desc}</p>
+      </div>
+
+      <div className="relative h-14 overflow-hidden rounded-sm border border-paper/20 bg-ink/60">
+        <div
+          className="absolute inset-0 opacity-25"
+          style={{
+            backgroundImage: "repeating-linear-gradient(90deg, rgba(243,237,226,0.9) 0 18px, transparent 18px 36px)",
+          }}
+        />
+        <div className="absolute inset-y-0 right-0 w-px bg-paper/60" aria-hidden="true" />
+        <motion.div className="absolute inset-y-0 left-0 w-full" style={{ x }}>
+          <div className="absolute bottom-0 left-2">
+            <PedestrianFigure kind={row.id} phase={phase} amp={amp} stranded={stranded} className="h-12 w-12" />
+          </div>
+        </motion.div>
+      </div>
+
+      <div className="relative mt-1.5 h-1.5 rounded-full bg-paper/10" aria-hidden="true">
+        <motion.div className="absolute inset-y-0 left-0 w-full origin-left rounded-full bg-amber" style={{ scaleX: bar }} />
+        <div
+          className="absolute -top-[3px] -bottom-[3px] w-px bg-danger"
+          style={{ left: `${(SIGNAL_SECONDS / LONGEST) * 100}%` }}
+        />
+      </div>
+
+      {stranded && (
+        <Beat progress={progress} from={row.end - 0.005} className="mt-1">
+          <p className="font-serif text-xs text-danger">
+            The signal turned red at {SIGNAL_SECONDS}s. This crossing needed {row.seconds}.
+          </p>
+        </Beat>
+      )}
+    </motion.div>
+  );
+}
+
+

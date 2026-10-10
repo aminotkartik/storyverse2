@@ -1,162 +1,107 @@
-import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChapterLabel, ContinueButton } from "../ui/Shared";
+import { motion, useTransform } from "framer-motion";
+import { StorySection, type SceneContext } from "../story/StorySection";
+import { Beat } from "../story/Beat";
+import { useChangeEffect, useDiscrete } from "../../hooks/useDiscrete";
+import { useSound } from "../../context/SoundContext";
 import { POSTER_REACTIONS } from "../../data/content";
-import type { SoundApi } from "../../hooks/useSound";
+import { asset } from "../../utils/asset";
 
-type Stage = "drag" | "placed" | "reacting" | "turning" | "done";
+const DROP_FROM = 0.04;
+const DROP_TO = 0.16;
+const REACT_START = 0.22;
+const REACT_STEP = 0.1;
+const TURN_START = 0.64;
+const TURN_STEP = 0.08;
+const DONE_AT = 0.88;
+const TURNS = ["Then, one person stops.", "A second person notices.", "A third person follows."] as const;
 
-export default function Chapter07Poster({ onNext, sound }: { onNext: () => void; sound: SoundApi }) {
-  const [stage, setStage] = useState<Stage>("drag");
-  const [reactionIdx, setReactionIdx] = useState(-1);
-  const [turnIdx, setTurnIdx] = useState(-1);
-  const targetRef = useRef<HTMLDivElement>(null);
-  const posterRef = useRef<HTMLDivElement>(null);
+const TEAR_INDEX = POSTER_REACTIONS.findIndex((r) => r.mood === "tear");
 
-  const checkDrop = () => {
-    const target = targetRef.current?.getBoundingClientRect();
-    const poster = posterRef.current?.getBoundingClientRect();
-    if (!target || !poster) return false;
-    const px = poster.left + poster.width / 2;
-    const py = poster.top + poster.height / 2;
-    return px > target.left && px < target.right && py > target.top && py < target.bottom;
-  };
+/** Index of the passerby reaction that has started by this point, or -1. */
+function reactionAt(v: number): number {
+  if (v < REACT_START) return -1;
+  return Math.min(POSTER_REACTIONS.length - 1, Math.floor((v - REACT_START) / REACT_STEP));
+}
 
-  useEffect(() => {
-    if (stage !== "placed") return;
-    sound.pageTurn();
-    setStage("reacting");
-  }, [stage, sound]);
+export default function Chapter07Poster() {
+  return (
+    <StorySection id="chapter-07" number={7} title="Give Them 15 Seconds" heightClass="h-[320vh]">
+      {(scene) => <PosterScene {...scene} />}
+    </StorySection>
+  );
+}
 
-  useEffect(() => {
-    if (stage !== "reacting") return;
-    if (reactionIdx < POSTER_REACTIONS.length - 1) {
-      const t = window.setTimeout(() => {
-        setReactionIdx((i) => i + 1);
-        if (POSTER_REACTIONS[reactionIdx + 1]?.mood === "tear") sound.tear();
-      }, 1100);
-      return () => window.clearTimeout(t);
-    } else {
-      const t = window.setTimeout(() => setStage("turning"), 1300);
-      return () => window.clearTimeout(t);
-    }
-  }, [stage, reactionIdx, sound]);
+function PosterScene({ progress }: SceneContext) {
+  const sound = useSound();
+  const reaction = useDiscrete(progress, reactionAt);
 
-  useEffect(() => {
-    if (stage !== "turning") return;
-    if (turnIdx < 2) {
-      const t = window.setTimeout(() => {
-        setTurnIdx((i) => i + 1);
-        sound.chime();
-      }, 1300);
-      return () => window.clearTimeout(t);
-    } else {
-      const t = window.setTimeout(() => setStage("done"), 1000);
-      return () => window.clearTimeout(t);
-    }
-  }, [stage, turnIdx, sound]);
+  useChangeEffect(reaction, (_prev, next) => {
+    if (next === TEAR_INDEX) sound.tear();
+  });
 
-  useEffect(() => {
-    if (stage === "reacting") setReactionIdx(0);
-  }, [stage]);
+  const drop = useTransform(progress, [DROP_FROM, DROP_TO], [340, 0]);
+  const dropOpacity = useTransform(progress, [DROP_FROM, DROP_TO * 0.8], [0, 1]);
+  const tearStart = REACT_START + TEAR_INDEX * REACT_STEP;
+  const tear = useTransform(progress, [tearStart, tearStart + 0.02], [0, 1]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-ink">
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url(/images/poster-wall.jpg)" }}
+    <div className="absolute inset-0 bg-ink">
+      <img
+        src={asset("images/poster-wall.jpg")}
+        alt="A weathered street wall with old posters, where a single notice is pasted."
+        className="absolute inset-0 h-full w-full object-cover"
       />
-      <div className="absolute inset-0 bg-ink/45" />
+      <div className="absolute inset-0 bg-ink/50" />
       <div className="grain absolute inset-0" />
 
-      <ChapterLabel index={7} title="Give Them 15 Seconds" />
+      <Beat progress={progress} from={0} to={0.06} className="absolute inset-x-0 top-20 px-6 text-center">
+        <p className="font-serif text-sm tracking-widest text-paper/70 uppercase">Scroll to put the notice up</p>
+      </Beat>
 
-      {/* drop target on the wall */}
-      <div
-        ref={targetRef}
-        className={`absolute top-[22%] left-1/2 h-40 w-32 -translate-x-1/2 rounded-sm border-2 border-dashed transition sm:h-52 sm:w-40 ${
-          stage === "drag" ? "border-paper/50" : "border-transparent"
-        }`}
-      />
+      <motion.div
+        style={{ y: drop, opacity: dropOpacity }}
+        className="absolute top-[22%] left-1/2 w-32 -translate-x-1/2 rounded-sm border-2 border-ink bg-paper p-3 text-center text-ink shadow-[4px_4px_0_0_#0b0b0c] sm:w-40 sm:p-4"
+      >
+        <motion.span
+          aria-hidden="true"
+          style={{ opacity: tear }}
+          className="absolute -top-px -right-px h-7 w-7 bg-charcoal"
+        />
+        <p className="font-display text-[11px] leading-tight sm:text-sm">GIVE THEM 15 SECONDS.</p>
+        <p className="mt-1 font-serif text-[9px] text-ink/60 sm:text-[10px]">
+          Don't honk. Don't block the crossing.
+          <br />
+          Don't park on the ramp.
+        </p>
+      </motion.div>
 
-      {stage === "drag" && (
-        <>
-          <motion.div
-            ref={posterRef}
-            drag
-            dragSnapToOrigin
-            dragElastic={0.2}
-            onDragEnd={() => {
-              if (checkDrop()) setStage("placed");
-            }}
-            whileDrag={{ scale: 1.06, zIndex: 50 }}
-            className="absolute bottom-[22%] left-1/2 w-28 -translate-x-1/2 cursor-grab touch-none rounded-sm border-2 border-ink bg-paper p-3 text-center shadow-[4px_4px_0_0_#0b0b0c] active:cursor-grabbing sm:w-36 sm:p-4"
-          >
-            <p className="font-display text-[11px] leading-tight text-ink sm:text-sm">
-              GIVE THEM 15 SECONDS.
-            </p>
-          </motion.div>
-          <p className="absolute inset-x-0 bottom-[13%] text-center font-serif text-xs tracking-widest text-paper/60 uppercase">
-            drag the poster onto the wall
-          </p>
-        </>
-      )}
-
-      {stage !== "drag" && (
-        <div className="absolute top-[22%] left-1/2 w-32 -translate-x-1/2 rounded-sm border-2 border-ink bg-paper p-3 text-center shadow-[4px_4px_0_0_#0b0b0c] sm:w-40 sm:p-4">
-          <p className="font-display text-[11px] leading-tight text-ink sm:text-sm">
-            GIVE THEM 15 SECONDS.
-          </p>
-          <p className="mt-1 font-serif text-[9px] text-ink/60 sm:text-[10px]">
-            Don't honk. Don't block the crossing.
-            <br />
-            Don't park on the ramp.
-          </p>
-        </div>
-      )}
-
-      <div className="absolute inset-x-0 bottom-10 z-10 flex flex-col items-center gap-3 px-4 text-center sm:bottom-16">
-        <AnimatePresence mode="wait">
-          {stage === "reacting" && reactionIdx >= 0 && (
-            <motion.p
-              key={reactionIdx}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="font-serif text-sm text-paper/80 italic"
-            >
-              A passerby {POSTER_REACTIONS[reactionIdx].reaction}.
-            </motion.p>
-          )}
-          {stage === "turning" && (
-            <motion.p
-              key={`turn-${turnIdx}`}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="font-display text-xl text-amber sm:text-2xl"
-            >
-              {turnIdx === 0 && "Then, one person stops."}
-              {turnIdx === 1 && "A second person notices."}
-              {turnIdx === 2 && "A third person follows."}
-            </motion.p>
-          )}
-          {stage === "done" && (
-            <motion.div
-              key="done"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center gap-5"
-            >
-              <p className="max-w-sm font-serif text-paper/80 italic">
-                Nobody applauded. The street didn't change overnight.
-                <br />
-                But it noticed, for the first time, that it could.
-              </p>
-              <ContinueButton onClick={onNext}>One choice at a time</ContinueButton>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className="absolute inset-x-0 bottom-[12%] z-10 h-16 px-6 text-center">
+        {POSTER_REACTIONS.map((r, i) => {
+          const from = REACT_START + i * REACT_STEP;
+          return (
+            <Beat key={r.reaction} progress={progress} from={from} to={from + REACT_STEP * 0.9} className="absolute inset-x-0 bottom-0">
+              <p className="font-serif text-sm text-paper/85 italic sm:text-base">A passerby {r.reaction}.</p>
+            </Beat>
+          );
+        })}
+        {TURNS.map((line, i) => {
+          const from = TURN_START + i * TURN_STEP;
+          return (
+            <Beat key={line} progress={progress} from={from} to={from + TURN_STEP * 0.9} className="absolute inset-x-0 bottom-0">
+              <p className="font-display text-xl text-amber sm:text-3xl">{line}</p>
+            </Beat>
+          );
+        })}
       </div>
+
+      <Beat progress={progress} from={DONE_AT} className="absolute inset-x-0 bottom-[10%] z-10 px-6 text-center">
+        <p className="mx-auto max-w-md font-serif text-paper/85 italic">
+          Nobody applauded. The street didn't change overnight.
+          <br />
+          But it noticed, for the first time, that it could.
+        </p>
+      </Beat>
     </div>
   );
 }
+

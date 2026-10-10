@@ -1,187 +1,108 @@
-import { useEffect, useRef, useState, type TouchEventHandler, type WheelEventHandler } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChapterLabel, ContinueButton, WalkingFigure } from "../ui/Shared";
-import type { SoundApi } from "../../hooks/useSound";
+import { motion, useTransform } from "framer-motion";
+import { StorySection, type SceneContext } from "../story/StorySection";
+import { Beat, RevealText } from "../story/Beat";
+import { CrossingLane } from "../story/CrossingLane";
+import { useChangeEffect, useDiscrete } from "../../hooks/useDiscrete";
+import { useSound } from "../../context/SoundContext";
+import { envelope, progressIn } from "../../utils/motion";
+import { asset } from "../../utils/asset";
 
-type Phase = "ready" | "crossing" | "end";
+const TWO_PI = Math.PI * 2;
+const elapsedAt = (v: number): number => Math.round(34 * progressIn(v, 0.1, 0.7));
+const arrivedAt = (v: number): boolean => v >= 0.7;
 
-export default function Chapter09ThirtyFour({ onNext, sound }: { onNext: () => void; sound: SoundApi }) {
-  const [phase, setPhase] = useState<Phase>("ready");
-  const [progress, setProgress] = useState(0);
-  const [narrationStep, setNarrationStep] = useState(0);
-  const touchY = useRef<number | null>(null);
+export default function Chapter09ThirtyFour() {
+  return (
+    <StorySection id="chapter-09" number={9} title="34 Seconds" heightClass="h-[300vh]">
+      {(scene) => <CalmScene {...scene} />}
+    </StorySection>
+  );
+}
 
-  const begin = () => {
-    setPhase("crossing");
-    sound.beep(900);
-    sound.startAmbient(0.06);
-  };
+/**
+ * The same crossing as Chapter 1, retold at an unhurried pace. Progress follows
+ * the visitor's scrolling, so they can pause or reverse; there is no timer.
+ */
+function CalmScene({ progress, reduced }: SceneContext) {
+  const sound = useSound();
+  const elapsed = useDiscrete(progress, elapsedAt);
+  const arrived = useDiscrete(progress, arrivedAt);
 
-  const applyDelta = (dy: number) => {
-    setProgress((p) => {
-      const next = Math.max(0, Math.min(1, p + dy));
-      if (next >= 1 && p < 1) {
-        sound.stopAmbient();
-        sound.chime();
-        window.setTimeout(() => setPhase("end"), 600);
-      }
-      return next;
-    });
-  };
+  useChangeEffect(arrived, (_prev, next) => {
+    if (next) sound.chime();
+  });
 
-  const onWheel: WheelEventHandler = (e) => {
-    if (phase !== "crossing") return;
-    e.preventDefault();
-    applyDelta(e.deltaY * 0.0009);
-  };
-  const onTouchStart: TouchEventHandler = (e) => {
-    touchY.current = e.touches[0].clientY;
-  };
-  const onTouchMove: TouchEventHandler = (e) => {
-    if (phase !== "crossing" || touchY.current === null) return;
-    const dy = touchY.current - e.touches[0].clientY;
-    applyDelta(dy * 0.003);
-    touchY.current = e.touches[0].clientY;
-  };
+  const taraX = useTransform(progress, [0.1, 0.6], ["8%", "74%"]);
+  const daduX = useTransform(progress, [0.1, 0.7], ["0%", "78%"]);
+  const taraPhase = useTransform(progress, (v) => progressIn(v, 0.1, 0.6) * 0.66 * TWO_PI * 5);
+  const daduPhase = useTransform(progress, (v) => progressIn(v, 0.1, 0.7) * 0.78 * TWO_PI * 5);
+  const taraAmp = useTransform(progress, (v) => envelope(v, 0.09, 0.61));
+  const daduAmp = useTransform(progress, (v) => envelope(v, 0.09, 0.71));
 
-  useEffect(() => {
-    if (phase !== "end") return;
-    const t1 = window.setTimeout(() => setNarrationStep(1), 600);
-    const t2 = window.setTimeout(() => setNarrationStep(2), 2600);
-    const t3 = window.setTimeout(() => setNarrationStep(3), 5200);
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-    };
-  }, [phase]);
-
-  const taraLeft = 16 + progress * 75;
-  const daduLeft = 5 + progress * 75;
-  const remaining = Math.max(0, 34 - Math.round(progress * 34));
+  // The framing opens up and the light settles as they cross.
+  const camera = useTransform(progress, [0, 1], reduced ? [1, 1] : [1.12, 1.0]);
+  const veil = useTransform(progress, [0, 0.6], [0.55, 0.22]);
 
   return (
-    <div
-      className="relative h-full w-full overflow-hidden bg-ink"
-      onWheel={onWheel}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-    >
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url(/images/crossing-calm.jpg)", filter: "brightness(0.75)" }}
+    <div className="absolute inset-0 bg-ink">
+      <motion.img
+        src={asset("images/crossing-calm.jpg")}
+        alt="Tara and Dadu walking together across a sunlit zebra crossing, with an accessibility ramp sign beside them."
+        className="absolute inset-0 h-full w-full object-cover object-[center_70%]"
+        style={{ scale: camera }}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-ink/50 via-transparent to-ink/80" />
+      <motion.div className="absolute inset-0 bg-ink" style={{ opacity: veil }} />
+      <div className="absolute inset-0 bg-gradient-to-b from-ink/60 via-transparent to-ink/85" />
       <div className="grain absolute inset-0" />
 
-      <ChapterLabel index={9} title="34 Seconds" />
+      <Beat progress={progress} from={0.02} to={0.2} className="absolute top-16 left-5 max-w-xs sm:left-10">
+        <p className="font-serif text-lg leading-snug text-paper/90 italic sm:text-xl">
+          The same crossing, another morning.
+        </p>
+      </Beat>
 
-      {phase === "crossing" && (
-        <div className="absolute top-6 right-6 z-10 font-display text-3xl text-paper/80 sm:top-10 sm:right-12">
-          {remaining}
-        </div>
-      )}
+      <div className="absolute top-16 right-5 flex flex-col items-end sm:right-10" aria-hidden="true">
+        <p className="font-display text-[11px] tracking-[0.3em] text-paper/60">TIME TAKEN</p>
+        <span className="font-display text-5xl leading-none text-paper/90 sm:text-6xl">
+          {String(elapsed).padStart(2, "0")}
+          <span className="ml-1 text-2xl text-paper/50">s</span>
+        </span>
+      </div>
 
-      <div className="relative z-10 flex h-full w-full flex-col">
-        <div className="flex-1" />
-        {phase !== "ready" && (
-          <div className="relative mx-auto mb-[16%] w-[92%] max-w-3xl">
-            <div
-              className="h-20 w-full rounded-sm opacity-80 sm:h-24"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, rgba(243,237,226,0.9) 0 24px, transparent 24px 48px)",
-              }}
+      <div className="absolute inset-x-0 bottom-[38%]">
+        <CrossingLane
+          tara={{ x: taraX, phase: taraPhase, amp: taraAmp }}
+          dadu={{ x: daduX, phase: daduPhase, amp: daduAmp }}
+        />
+      </div>
+
+      <Beat progress={progress} from={0.66} to={0.8} className="absolute top-40 left-5 max-w-xs sm:left-10 sm:top-44">
+        <p className="font-serif text-base leading-snug text-paper/85 italic sm:text-lg">
+          Dadu reaches the other side. Tara looks back. Traffic has waited. Nobody complains.
+        </p>
+      </Beat>
+
+      <div className="absolute inset-x-0 bottom-[8%] flex flex-col items-center gap-3 px-6 text-center">
+        <Beat progress={progress} from={0.82} className="max-w-2xl">
+          <p className="font-display text-xl leading-snug text-paper sm:text-3xl">
+            “The city finally gave them more time.”
+          </p>
+        </Beat>
+        <Beat progress={progress} from={0.87} className="max-w-2xl">
+          <p className="font-display text-lg leading-snug text-paper/80 sm:text-2xl">
+            “But that wasn't the real change.”
+          </p>
+        </Beat>
+        <Beat progress={progress} from={0.92} className="max-w-2xl">
+          <p className="font-display text-xl leading-snug text-amber sm:text-2xl">
+            <RevealText
+              text="“The real change was that people finally stopped stealing time from one another.”"
+              progress={progress}
+              from={0.92}
+              to={0.99}
             />
-            <div
-              className="absolute -top-16 z-10 -translate-x-1/2 transition-[left] duration-150 ease-out sm:-top-22"
-              style={{ left: `${taraLeft}%` }}
-            >
-              <WalkingFigure
-                character="tara"
-                walking={phase === "crossing" && progress < 1}
-                progress={progress}
-              />
-            </div>
-            <div
-              className="absolute -top-8 z-20 -translate-x-1/2 transition-[left] duration-150 ease-out sm:-top-12"
-              style={{ left: `${daduLeft}%` }}
-            >
-              <WalkingFigure
-                character="dadu"
-                walking={phase === "crossing" && progress < 1}
-                progress={progress}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="flex flex-col items-center gap-6 pb-12 text-center sm:pb-20">
-          {phase === "ready" && (
-            <motion.button
-              onClick={begin}
-              whileTap={{ scale: 0.95 }}
-              className="flex flex-col items-center gap-4"
-            >
-              <span className="font-display text-7xl text-paper sm:text-8xl">34</span>
-              <span className="rounded-sm border border-paper/40 px-5 py-2 font-display text-xs tracking-[0.25em] text-paper/80">
-                TAP TO CROSS, THEN SCROLL AT YOUR OWN PACE
-              </span>
-            </motion.button>
-          )}
-
-          {phase === "crossing" && progress < 1 && (
-            <p className="font-serif text-xs tracking-widest text-paper/50 uppercase">
-              scroll or swipe to walk with them
-            </p>
-          )}
-
-          <AnimatePresence>
-            {phase === "end" && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex max-w-lg flex-col items-center gap-5 px-4"
-              >
-                <p className="font-serif text-paper/80 italic">
-                  Dadu reaches the other side. Tara looks back. Traffic has waited. Nobody complains.
-                </p>
-                <div className="min-h-[5.5rem] space-y-3">
-                  <AnimatePresence>
-                    {narrationStep >= 1 && (
-                      <motion.p
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="font-display text-xl text-paper sm:text-2xl"
-                      >
-                        “The city finally gave them more time.”
-                      </motion.p>
-                    )}
-                    {narrationStep >= 2 && (
-                      <motion.p
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="font-display text-xl text-paper/80 sm:text-2xl"
-                      >
-                        “But that wasn't the real change.”
-                      </motion.p>
-                    )}
-                    {narrationStep >= 3 && (
-                      <motion.p
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="font-display text-xl text-amber sm:text-2xl"
-                      >
-                        “The real change was that people finally stopped stealing time from one another.”
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </div>
-                {narrationStep >= 3 && <ContinueButton onClick={onNext}>Zoom out</ContinueButton>}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+          </p>
+        </Beat>
       </div>
     </div>
   );

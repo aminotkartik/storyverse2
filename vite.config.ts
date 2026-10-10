@@ -8,8 +8,10 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// https://vite.dev/config/
+// Relative base keeps every asset path valid on GitHub Pages project sites
+// (https://user.github.io/repo/) as well as root-hosted static servers.
 export default defineConfig({
+  base: "./",
   plugins: [react(), tailwindcss(), viteSingleFile()],
   server: {
     host: "0.0.0.0",
