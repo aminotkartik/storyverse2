@@ -42,13 +42,39 @@ function StreetScene({ progress, reduced }: SceneContext) {
   const zoom = useTransform(progress, [0, 0.9], reduced ? [1, 1] : [1.08, 1.02]);
 
   return (
-    <div className="absolute inset-0 bg-ink">
-      <motion.img
-        src={asset("images/lookagain-street.jpg")}
-        alt="A busy street: a car parked on the footpath, a garbage heap by the bin, a car on the zebra crossing, a motorbike, a blocked accessibility ramp, and a honking driver."
-        className="absolute inset-0 h-full w-full object-cover"
-        style={{ x: pan, scale: zoom, filter: "grayscale(0.15) brightness(0.8)" }}
-      />
+    <div className="absolute inset-0 overflow-hidden bg-ink" style={{ containerType: "size" }}>
+      <motion.div className="absolute inset-0" style={{ x: pan, scale: zoom }}>
+        {/*
+         * A frame with the photo's own 3:2 ratio. On wide screens it covers the stage, like
+         * object-cover. On portrait screens it fits the full width, so every hotspot stays on
+         * screen (a cover crop would show only the middle of the street). Hotspot percentages
+         * therefore refer to the image, not the viewport.
+         */}
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          style={{ width: "100cqw", height: "66.667cqw" }}
+        >
+          <img
+            src={asset("images/lookagain-street.jpg")}
+            alt="A busy street: a car parked on the footpath, a garbage heap by the bin, a car on the zebra crossing, a motorbike, a blocked accessibility ramp, and a honking driver."
+            className="absolute inset-0 h-full w-full"
+            style={{ filter: "grayscale(0.15) brightness(0.8)" }}
+          />
+          {HOTSPOTS.map((spotData, i) => (
+            <Marker
+              key={spotData.id}
+              index={i}
+              label={spotData.label}
+              x={spotData.x}
+              y={spotData.y}
+              progress={progress}
+              selected={shown === i}
+              revealed={i <= latest}
+              onSelect={() => setPicked({ at: latest, index: i })}
+            />
+          ))}
+        </div>
+      </motion.div>
       <div className="absolute inset-0 bg-ink/30" />
       <div className="grain absolute inset-0" />
 
@@ -59,20 +85,6 @@ function StreetScene({ progress, reduced }: SceneContext) {
       <p className="absolute bottom-[calc(38%+1rem)] left-5 font-display text-[11px] tracking-[0.25em] text-paper/80 sm:left-10 sm:bottom-auto sm:top-44">
         {String(Math.max(0, latest + 1)).padStart(2, "0")} / {String(HOTSPOTS.length).padStart(2, "0")} NOTICED
       </p>
-
-      {HOTSPOTS.map((spotData, i) => (
-        <Marker
-          key={spotData.id}
-          index={i}
-          label={spotData.label}
-          x={spotData.x}
-          y={spotData.y}
-          progress={progress}
-          selected={shown === i}
-          revealed={i <= latest}
-          onSelect={() => setPicked({ at: latest, index: i })}
-        />
-      ))}
 
       <div className="absolute inset-x-0 bottom-6 flex justify-center px-4 sm:bottom-10">
         <AnimatePresence mode="wait">

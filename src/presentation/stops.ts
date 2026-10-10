@@ -59,11 +59,11 @@ export const PRESENTATION_STOPS: readonly PresentationStop[] = [
 
   // Chapter 03 — Look Again
   stop("chapter-03", 0.06, "Look Again"),
-  stop("chapter-03", 0.17, "Hotspot: car on the footpath"),
-  stop("chapter-03", 0.31, "Hotspot: blocked ramp"),
+  stop("chapter-03", 0.17, "Hotspot: someone trying to save seconds"),
+  stop("chapter-03", 0.31, "Hotspot: car on the footpath"),
   stop("chapter-03", 0.45, "Hotspot: car on the zebra crossing"),
-  stop("chapter-03", 0.59, "Hotspot: garbage beside the bin"),
-  stop("chapter-03", 0.73, "Hotspot: honking driver"),
+  stop("chapter-03", 0.59, "Hotspot: blocked ramp"),
+  stop("chapter-03", 0.73, "Hotspot: garbage beside the bin"),
   stop("chapter-03", 0.9, "Nothing here was hidden"),
 
   // Chapter 04 — The Average Human

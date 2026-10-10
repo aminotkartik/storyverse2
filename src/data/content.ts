@@ -55,12 +55,13 @@ export interface Hotspot {
   reveal: string;
 }
 
+/** Revealed in array order. Positions are measured on the 1536×1024 photo. */
 export const HOTSPOTS: readonly Hotspot[] = [
-  { id: "footpath", x: 20, y: 62, label: "Car on footpath", reveal: "Someone gained convenience.\nSomeone lost a path." },
-  { id: "ramp", x: 72, y: 70, label: "Blocked ramp", reveal: "For one person, this is parking.\nFor another, this is a wall." },
-  { id: "zebra", x: 48, y: 52, label: "Car on zebra crossing", reveal: "The crossing exists.\nThe priority doesn't." },
-  { id: "garbage", x: 85, y: 40, label: "Garbage beside the bin", reveal: "Public space becomes\nnobody's space." },
-  { id: "honk", x: 32, y: 28, label: "Honking driver", reveal: "Someone is trying\nto save seconds." },
+  { id: "honk", x: 26.04, y: 58.79, label: "Honking driver", reveal: "Someone is trying\nto save seconds." },
+  { id: "footpath", x: 79.75, y: 62.11, label: "Car on footpath", reveal: "Someone gained convenience.\nSomeone lost a path." },
+  { id: "zebra", x: 43.55, y: 67.19, label: "Car on zebra crossing", reveal: "The crossing exists.\nThe priority doesn't." },
+  { id: "ramp", x: 23.31, y: 81.74, label: "Blocked ramp", reveal: "For one person, this is parking.\nFor another, this is a wall." },
+  { id: "garbage", x: 94.66, y: 56.93, label: "Garbage beside the bin", reveal: "Public space becomes\nnobody's space." },
 ];
 
 export const AVERAGE_FRAGMENTS: readonly string[] = [
