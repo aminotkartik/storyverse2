@@ -1,13 +1,13 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
 import { StorySection, type SceneContext } from "../story/StorySection";
 import { Beat } from "../story/Beat";
 import { useDiscrete } from "../../hooks/useDiscrete";
+import { setChainChoice, useChainChoices, type ChainChoice } from "../../state/chainChoices";
 import { useSound } from "../../context/SoundContext";
 import { CHAIN_STEPS } from "../../data/content";
 import { cn } from "../../utils/cn";
 
-type Choice = "careless" | "responsible";
+type Choice = ChainChoice;
 
 const FIRST_AT = 0.08;
 const STEP_SPAN = 0.24;
@@ -40,14 +40,11 @@ export default function Chapter08SecondPerson() {
 function ChoiceScene({ progress }: SceneContext) {
   const sound = useSound();
   const active = useDiscrete(progress, activeStepAt);
-  const [choices, setChoices] = useState<(Choice | undefined)[]>([]);
+  // Choices live in a shared store so they persist across Prev/Next and mode switches.
+  const choices = useChainChoices();
 
   const choose = (i: number, choice: Choice) => {
-    setChoices((prev) => {
-      const next = [...prev];
-      next[i] = choice;
-      return next;
-    });
+    setChainChoice(i, choice);
     if (choice === "responsible") sound.chime();
     else sound.honk(0.6);
   };

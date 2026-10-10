@@ -2,6 +2,7 @@ import { motion, useTransform } from "framer-motion";
 import { StorySection, type SceneContext } from "../story/StorySection";
 import { Beat } from "../story/Beat";
 import { useDiscrete } from "../../hooks/useDiscrete";
+import { useSlideshow } from "../../context/PresentationContext";
 import { asset } from "../../utils/asset";
 
 const ZOOM_LABELS = ["a crossing", "a street", "a neighbourhood", "a city", "a sea of people"] as const;
@@ -25,6 +26,7 @@ export default function Chapter10City() {
 
 function CityScene({ progress, reduced }: SceneContext) {
   const level = useDiscrete(progress, labelAt);
+  const slideshow = useSlideshow();
   // Start close on the street below the rooftop and pull back to the whole city.
   const scale = useTransform(progress, [0, 0.7], reduced ? [1, 1] : [2.6, 1]);
 
@@ -64,17 +66,17 @@ function CityScene({ progress, reduced }: SceneContext) {
             <br />
             <span className="text-amber">BUILD FOR HUMANITY.</span>
           </p>
+          {/* The link lives in the final beat so it sits above the slideshow control bar. */}
+          {!slideshow.active && (
+            <a
+              href="#commitments"
+              className="mt-8 inline-block font-display text-xs tracking-[0.25em] text-paper/80 underline decoration-amber decoration-2 underline-offset-8 transition hover:text-amber focus-visible:outline-2 focus-visible:outline-amber"
+            >
+              WHAT WILL YOU NOT DO TODAY? ↓
+            </a>
+          )}
         </Beat>
       </div>
-
-      <Beat progress={progress} from={0.92} className="absolute inset-x-0 bottom-5 z-10 flex justify-center">
-        <a
-          href="#commitments"
-          className="font-display text-xs tracking-[0.25em] text-paper/80 underline decoration-amber decoration-2 underline-offset-8 transition hover:text-amber focus-visible:outline-2 focus-visible:outline-amber"
-        >
-          WHAT WILL YOU NOT DO TODAY? ↓
-        </a>
-      </Beat>
     </div>
   );
 }

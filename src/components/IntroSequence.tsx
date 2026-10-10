@@ -3,6 +3,7 @@ import { StorySection, type SceneContext } from "./story/StorySection";
 import { Beat, RevealText } from "./story/Beat";
 import { useChangeEffect, useDiscrete } from "../hooks/useDiscrete";
 import { useSound } from "../context/SoundContext";
+import { useSlideshow } from "../context/PresentationContext";
 import { secondsLeft } from "../utils/countdown";
 import { asset } from "../utils/asset";
 import { cn } from "../utils/cn";
@@ -21,6 +22,7 @@ export default function IntroSequence() {
 function IntroScene({ progress, reduced }: SceneContext) {
   const sound = useSound();
   const count = useDiscrete(progress, introAt);
+  const slideshow = useSlideshow();
 
   useChangeEffect(count, (prev, next) => {
     if (prev === -1 && next > 0) sound.startAmbient(0.1);
@@ -99,8 +101,10 @@ function IntroScene({ progress, reduced }: SceneContext) {
         )}
       </div>
 
-      <Beat progress={progress} from={0} to={0.07} className="absolute inset-x-0 bottom-10 text-center">
-        <p className="font-serif text-xs tracking-[0.35em] text-paper/60 uppercase">Scroll to begin the crossing</p>
+      <Beat progress={progress} from={0} to={0.07} className="absolute inset-x-0 bottom-[16%] text-center">
+        <p className="font-serif text-xs tracking-[0.35em] text-paper/60 uppercase">
+          {slideshow.active ? "Use Next to begin the crossing" : "Scroll to begin the crossing"}
+        </p>
       </Beat>
 
       <Beat

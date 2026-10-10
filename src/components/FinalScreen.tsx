@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
+import { useSlideshow } from "../context/PresentationContext";
 
 export default function FinalScreen() {
+  const slideshow = useSlideshow();
   return (
     <section
       id="closing"
@@ -33,6 +35,13 @@ export default function FinalScreen() {
 
         <a
           href="#opening"
+          onClick={(e) => {
+            // In Slideshow Mode, "back to the beginning" returns to the first slide.
+            if (slideshow.active) {
+              e.preventDefault();
+              slideshow.goToIndex(0);
+            }
+          }}
           className="rounded-sm border-2 border-ink px-7 py-3 font-display text-sm tracking-[0.2em] transition hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-amber"
         >
           BACK TO THE BEGINNING

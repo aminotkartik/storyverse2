@@ -1,17 +1,19 @@
 import { motion, useScroll } from "framer-motion";
-import { Menu, Volume2, VolumeX, X } from "lucide-react";
+import { Menu, Presentation, Volume2, VolumeX, X } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { CHAPTERS, SECTIONS } from "../data/content";
 import { useSound } from "../context/SoundContext";
+import { useSlideshow } from "../context/PresentationContext";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /**
  * Minimal persistent chrome: a hairline scroll-progress bar, the current
- * chapter, a chapter menu of native anchor links, and the sound toggle.
+ * chapter, a mode switch (Scroll / Slideshow), a chapter menu, and the sound toggle.
  */
 export default function NavChrome({ activeId }: { activeId: string | null }) {
   const sound = useSound();
+  const slideshow = useSlideshow();
   const { scrollYProgress } = useScroll();
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -21,6 +23,7 @@ export default function NavChrome({ activeId }: { activeId: string | null }) {
       ? `${pad(active.number)} / ${CHAPTERS.length} — ${active.title.toUpperCase()}`
       : active.title.toUpperCase()
     : "";
+  const modeLabel = slideshow.active ? "EXIT SLIDESHOW" : "SLIDESHOW MODE";
 
   useEffect(() => {
     if (!open) return;
@@ -45,6 +48,16 @@ export default function NavChrome({ activeId }: { activeId: string | null }) {
         </p>
 
         <div className="pointer-events-auto flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={slideshow.toggle}
+            aria-label={modeLabel}
+            aria-keyshortcuts={slideshow.active ? "Escape" : undefined}
+            className="flex h-10 items-center gap-2 rounded-full border border-paper/30 bg-ink/75 px-3 text-paper transition hover:border-paper/70"
+          >
+            <Presentation size={16} aria-hidden="true" />
+            <span className="hidden font-display text-[11px] tracking-[0.2em] sm:inline">{modeLabel}</span>
+          </button>
           <button
             type="button"
             aria-expanded={open}
@@ -78,7 +91,14 @@ export default function NavChrome({ activeId }: { activeId: string | null }) {
               <li key={s.id}>
                 <a
                   href={`#${s.id}`}
-                  onClick={() => setOpen(false)}
+                  onClick={(e) => {
+                    setOpen(false);
+                    // In Slideshow Mode a chapter jumps to its first slide instead of anchoring.
+                    if (slideshow.active) {
+                      e.preventDefault();
+                      slideshow.goToSection(s.id);
+                    }
+                  }}
                   aria-current={s.id === activeId ? "location" : undefined}
                   className="flex items-baseline gap-3 rounded-sm px-3 py-2 font-serif text-paper/90 transition hover:bg-paper/5 aria-[current=location]:text-amber"
                 >

@@ -13,7 +13,9 @@ import Chapter09ThirtyFour from "./components/chapters/Chapter09ThirtyFour";
 import Chapter10City from "./components/chapters/Chapter10City";
 import Ending from "./components/Ending";
 import FinalScreen from "./components/FinalScreen";
+import PresentationBar from "./components/presentation/PresentationBar";
 import { SoundProvider, useSound } from "./context/SoundContext";
+import { PresentationProvider, useSlideshow } from "./context/PresentationContext";
 import { useActiveSectionId } from "./hooks/useInView";
 import { SECTIONS } from "./data/content";
 
@@ -24,19 +26,24 @@ const AMBIENT_SECTIONS = new Set(["opening", "chapter-01"]);
 export default function App() {
   return (
     <SoundProvider>
-      <StoryShell />
+      <PresentationProvider>
+        <StoryShell />
+      </PresentationProvider>
     </SoundProvider>
   );
 }
 
 /**
  * A single continuous document. Each story section is a tall scroll track with
- * a sticky stage, so the page scrolls natively: nothing intercepts the wheel or
- * touch, and no key or click is needed to move on.
+ * a sticky stage, so the page scrolls natively in Scroll Mode: nothing intercepts
+ * the wheel or touch. Slideshow Mode (opt-in) moves between stops on the same page.
  */
 function StoryShell() {
   const sound = useSound();
-  const activeId = useActiveSectionId(SECTION_IDS);
+  const slideshow = useSlideshow();
+  const scrolledId = useActiveSectionId(SECTION_IDS);
+  // In Slideshow Mode the chrome follows the slide, not the scroll position.
+  const activeId = slideshow.active ? slideshow.sectionId : scrolledId;
 
   useEffect(() => {
     if (activeId && !AMBIENT_SECTIONS.has(activeId)) sound.stopAmbient();
@@ -66,6 +73,7 @@ function StoryShell() {
         <Ending />
         <FinalScreen />
       </main>
+      <PresentationBar />
     </>
   );
 }

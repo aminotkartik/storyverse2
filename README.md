@@ -36,7 +36,18 @@ static host.
   anchor links. The current chapter is shown beside it as `NN / 10 — TITLE`. A thin
   bar at the top shows overall progress.
 - **Optional choices** — "Look Again" hotspots and the "Second Person" choices are
-  keyboard-accessible buttons. They are optional: scrolling is never blocked by them.
+  keyboard-accessible buttons. In Scroll Mode they are optional and never block scrolling.
+  The only exception is Slideshow Mode, where one of the two responses in each "Second
+  Person" scenario must be chosen before Next moves on. Either response is valid, and a
+  choice can be changed later. Selections are kept while you move between slides.
+- **Slideshow Mode** — the button at the top, labelled `SLIDESHOW MODE`, switches to a
+  guided walk through the story. The control bar at the bottom has Previous, Next, and a
+  progress bar. It shows `SLIDE n / N — CHAPTER NN: TITLE`. Keys: ←/→ or ↑/↓ move between
+  slides, Home and End jump to the first and last slide, and Escape exits. Keys are ignored
+  inside form fields. Choosing a chapter from the menu jumps to its first slide. Scroll Mode
+  is the default, and it is the only mode that leaves native scrolling untouched. Slideshow
+  Mode locks page scrolling while it is active. With reduced motion, slide changes are
+  instant. The slides are stops on the same scenes, so there is no duplicate content.
 - **Reduced motion** — when `prefers-reduced-motion` is set, camera moves, zooms, and
   pans are switched off. The story text and its timing are unchanged.
 
