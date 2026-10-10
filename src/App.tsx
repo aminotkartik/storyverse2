@@ -1,10 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import LoadingScreen from "./components/LoadingScreen";
-import IntroSequence from "./components/IntroSequence";
+import { useEffect } from "react";
 import NavChrome from "./components/NavChrome";
-import Ending from "./components/Ending";
-import FinalScreen from "./components/FinalScreen";
+import IntroSequence from "./components/IntroSequence";
 import Chapter01Crossing from "./components/chapters/Chapter01Crossing";
 import Chapter02Pace from "./components/chapters/Chapter02Pace";
 import Chapter03LookAgain from "./components/chapters/Chapter03LookAgain";
@@ -15,186 +11,69 @@ import Chapter07Poster from "./components/chapters/Chapter07Poster";
 import Chapter08SecondPerson from "./components/chapters/Chapter08SecondPerson";
 import Chapter09ThirtyFour from "./components/chapters/Chapter09ThirtyFour";
 import Chapter10City from "./components/chapters/Chapter10City";
-import { useSound } from "./hooks/useSound";
-import { useReducedMotion } from "./hooks/useReducedMotion";
-import { CHAPTERS } from "./data/content";
+import Ending from "./components/Ending";
+import FinalScreen from "./components/FinalScreen";
+import PresentationBar from "./components/presentation/PresentationBar";
+import { SoundProvider, useSound } from "./context/SoundContext";
+import { PresentationProvider, useSlideshow } from "./context/PresentationContext";
+import { useActiveSectionId } from "./hooks/useInView";
+import { SECTIONS } from "./data/content";
 
-export type Stage = "loading" | "intro" | "chapter" | "ending" | "final";
+const SECTION_IDS = SECTIONS.map((s) => s.id);
+/** Sections whose ambient bed is allowed to run. Everywhere else it is stopped. */
+const AMBIENT_SECTIONS = new Set(["opening", "chapter-01"]);
 
 export default function App() {
-  const [stage, setStage] = useState<Stage>("loading");
-  const [chapterIndex, setChapterIndex] = useState(1);
-  const [presentationMode, setPresentationMode] = useState(false);
-  const sound = useSound();
-  const reduced = useReducedMotion();
-
-  const goNext = useCallback(() => {
-    if (stage === "chapter") {
-      if (chapterIndex < CHAPTERS.length) {
-        setChapterIndex((i) => i + 1);
-      } else {
-        setStage("ending");
-      }
-    } else if (stage === "ending") {
-      setStage("final");
-    }
-  }, [stage, chapterIndex]);
-
-  const goPrev = useCallback(() => {
-    if (stage === "chapter") {
-      if (chapterIndex > 1) {
-        setChapterIndex((i) => i - 1);
-      }
-    } else if (stage === "ending") {
-      setChapterIndex(CHAPTERS.length);
-      setStage("chapter");
-    }
-  }, [stage, chapterIndex]);
-
-  const jumpTo = useCallback((n: number) => {
-    if (n <= CHAPTERS.length) {
-      setChapterIndex(n);
-      setStage("chapter");
-    } else {
-      setStage("ending");
-    }
-  }, []);
-
-  // keyboard shortcuts: arrows for navigation, P for presentation mode, E to restart
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-
-      if (e.key.toLowerCase() === "p") {
-        const turningOn = !presentationMode;
-        setPresentationMode(turningOn);
-        if (turningOn) {
-          setStage("chapter");
-          setChapterIndex(1);
-        }
-      } else if (e.key.toLowerCase() === "e") {
-        setPresentationMode(false);
-        setStage("loading");
-        setChapterIndex(1);
-      } else if (stage === "chapter") {
-        if (e.key === "ArrowRight") goNext();
-        if (e.key === "ArrowLeft") goPrev();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [stage, presentationMode, goNext, goPrev]);
-
-  const chapterTitle = useMemo(
-    () => CHAPTERS.find((c) => c.id === chapterIndex)?.title ?? "",
-    [chapterIndex]
+  return (
+    <SoundProvider>
+      <PresentationProvider>
+        <StoryShell />
+      </PresentationProvider>
+    </SoundProvider>
   );
+}
 
-  const chapterNode = () => {
-    const common = { onNext: goNext, sound };
-    switch (chapterIndex) {
-      case 1:
-        return <Chapter01Crossing {...common} />;
-      case 2:
-        return <Chapter02Pace {...common} />;
-      case 3:
-        return <Chapter03LookAgain {...common} />;
-      case 4:
-        return <Chapter04AverageHuman {...common} />;
-      case 5:
-        return <Chapter05Mirror {...common} />;
-      case 6:
-        return <Chapter06Notebook {...common} />;
-      case 7:
-        return <Chapter07Poster {...common} />;
-      case 8:
-        return <Chapter08SecondPerson {...common} />;
-      case 9:
-        return <Chapter09ThirtyFour {...common} />;
-      case 10:
-        return <Chapter10City onNext={goNext} />;
-      default:
-        return null;
-    }
-  };
+/**
+ * A single continuous document. Each story section is a tall scroll track with
+ * a sticky stage, so the page scrolls natively in Scroll Mode: nothing intercepts
+ * the wheel or touch. Slideshow Mode (opt-in) moves between stops on the same page.
+ */
+function StoryShell() {
+  const sound = useSound();
+  const slideshow = useSlideshow();
+  const scrolledId = useActiveSectionId(SECTION_IDS);
+  // In Slideshow Mode the chrome follows the slide, not the scroll position.
+  const activeId = slideshow.active ? slideshow.sectionId : scrolledId;
+
+  useEffect(() => {
+    if (activeId && !AMBIENT_SECTIONS.has(activeId)) sound.stopAmbient();
+  }, [activeId]);
 
   return (
-    <div className="fixed inset-0 h-[100dvh] w-screen overflow-hidden bg-ink font-serif text-paper">
-      <span className="sr-only" role="status" aria-live="polite">
-        {stage === "chapter" ? `Chapter ${chapterIndex} of ${CHAPTERS.length}: ${chapterTitle}` : stage}
-      </span>
-
-      {stage === "loading" && <LoadingScreen onDone={() => setStage("intro")} />}
-
-      {stage === "intro" && (
-        <IntroSequence
-          sound={sound}
-          onBegin={() => {
-            setStage("chapter");
-            setChapterIndex(1);
-          }}
-        />
-      )}
-
-      {(stage === "chapter" || stage === "ending") && (
-        <>
-          <AnimatePresence mode="wait">
-            {stage === "chapter" && (
-              <motion.div
-                key={chapterIndex}
-                initial={{ opacity: 0, scale: reduced ? 1 : 1.015 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: reduced ? 1 : 0.985 }}
-                transition={{ duration: reduced ? 0.15 : 0.5, ease: "easeInOut" }}
-                className="absolute inset-0"
-              >
-                {chapterNode()}
-              </motion.div>
-            )}
-            {stage === "ending" && (
-              <motion.div
-                key="ending"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0"
-              >
-                <Ending onNext={goNext} sound={sound} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <NavChrome
-            stage={stage}
-            chapterIndex={chapterIndex}
-            onPrev={goPrev}
-            onNext={goNext}
-            onJump={jumpTo}
-            soundEnabled={sound.enabled}
-            onToggleSound={sound.toggle}
-            presentationMode={presentationMode}
-          />
-
-          {presentationMode && (
-            <button
-              onClick={() => setPresentationMode(false)}
-              className="fixed top-4 left-4 z-40 rounded-full border border-paper/20 px-3 py-1 font-display text-[10px] tracking-widest text-paper/40 transition hover:text-paper/80"
-            >
-              EXIT PRESENTATION
-            </button>
-          )}
-        </>
-      )}
-
-      {stage === "final" && (
-        <FinalScreen
-          onRestart={() => {
-            setStage("chapter");
-            setChapterIndex(1);
-          }}
-        />
-      )}
-    </div>
+    <>
+      <a
+        href="#main"
+        className="sr-only z-[60] rounded-sm bg-paper px-4 py-2 font-display text-sm text-ink focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+      >
+        Skip to the story
+      </a>
+      <NavChrome activeId={activeId} />
+      <main id="main" className="relative bg-ink text-paper">
+        <IntroSequence />
+        <Chapter01Crossing />
+        <Chapter02Pace />
+        <Chapter03LookAgain />
+        <Chapter04AverageHuman />
+        <Chapter05Mirror />
+        <Chapter06Notebook />
+        <Chapter07Poster />
+        <Chapter08SecondPerson />
+        <Chapter09ThirtyFour />
+        <Chapter10City />
+        <Ending />
+        <FinalScreen />
+      </main>
+      <PresentationBar />
+    </>
   );
 }

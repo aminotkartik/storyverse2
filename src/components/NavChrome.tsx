@@ -1,155 +1,121 @@
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Menu, Volume2, VolumeX, X } from "lucide-react";
-import { useState } from "react";
-import { CHAPTERS } from "../data/content";
-import type { Stage } from "../App";
+import { motion, useScroll } from "framer-motion";
+import { Menu, Presentation, Volume2, VolumeX, X } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { CHAPTERS, SECTIONS } from "../data/content";
+import { useSound } from "../context/SoundContext";
+import { useSlideshow } from "../context/PresentationContext";
 
-export default function NavChrome({
-  stage,
-  chapterIndex,
-  onPrev,
-  onNext,
-  onJump,
-  soundEnabled,
-  onToggleSound,
-  presentationMode,
-}: {
-  stage: Stage;
-  chapterIndex: number;
-  onPrev: () => void;
-  onNext: () => void;
-  onJump: (i: number) => void;
-  soundEnabled: boolean;
-  onToggleSound: () => void;
-  presentationMode: boolean;
-}) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const inChapter = stage === "chapter";
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * Minimal persistent chrome: a hairline scroll-progress bar, the current
+ * chapter, a mode switch (Scroll / Slideshow), a chapter menu, and the sound toggle.
+ */
+export default function NavChrome({ activeId }: { activeId: string | null }) {
+  const sound = useSound();
+  const slideshow = useSlideshow();
+  const { scrollYProgress } = useScroll();
+  const [open, setOpen] = useState(false);
+  const menuId = useId();
+  const active = SECTIONS.find((s) => s.id === activeId) ?? null;
+  const headline = active
+    ? active.number
+      ? `${pad(active.number)} / ${CHAPTERS.length} — ${active.title.toUpperCase()}`
+      : active.title.toUpperCase()
+    : "";
+  const modeLabel = slideshow.active ? "EXIT SLIDESHOW" : "SLIDESHOW MODE";
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   return (
     <>
-      {/* persistent watermark countdown motif */}
-      {!presentationMode && (
-        <div
-          aria-hidden
-          className="pointer-events-none fixed top-2 right-3 z-10 font-display text-[11px] tracking-[0.3em] text-paper/25 select-none sm:top-4 sm:right-6"
-        >
-          {stage === "chapter" ? `CH.${String(chapterIndex).padStart(2, "0")}` : "FIFTEEN SECONDS"}
+      <motion.div
+        aria-hidden="true"
+        className="fixed inset-x-0 top-0 z-50 h-[2px] origin-left bg-amber"
+        style={{ scaleX: scrollYProgress }}
+      />
+
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-40 flex items-start justify-between gap-3 p-3 sm:p-5">
+        <p className="pointer-events-auto min-w-0 truncate rounded-sm bg-ink/75 px-2.5 py-1.5 font-display text-[11px] tracking-[0.2em] text-paper/90 sm:text-xs">
+          {headline}
+        </p>
+
+        <div className="pointer-events-auto flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={slideshow.toggle}
+            aria-label={modeLabel}
+            aria-keyshortcuts={slideshow.active ? "Escape" : undefined}
+            className="flex h-10 items-center gap-2 rounded-full border border-paper/30 bg-ink/75 px-3 text-paper transition hover:border-paper/70"
+          >
+            <Presentation size={16} aria-hidden="true" />
+            <span className="hidden font-display text-[11px] tracking-[0.2em] sm:inline">{modeLabel}</span>
+          </button>
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={menuId}
+            onClick={() => setOpen((o) => !o)}
+            className="flex h-10 items-center gap-2 rounded-full border border-paper/30 bg-ink/75 px-3 text-paper transition hover:border-paper/70"
+          >
+            {open ? <X size={16} aria-hidden="true" /> : <Menu size={16} aria-hidden="true" />}
+            <span className="font-display text-[11px] tracking-[0.2em]">CHAPTERS</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={sound.enabled}
+            aria-label={sound.enabled ? "Sound is on. Turn sound off" : "Sound is off. Turn sound on"}
+            onClick={sound.toggle}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-paper/30 bg-ink/75 text-paper transition hover:border-paper/70"
+          >
+            {sound.enabled ? <Volume2 size={16} aria-hidden="true" /> : <VolumeX size={16} aria-hidden="true" />}
+          </button>
         </div>
+      </header>
+
+      {open && (
+        <nav
+          id={menuId}
+          aria-label="Chapters"
+          className="fixed top-16 right-3 z-50 max-h-[78svh] w-[min(92vw,22rem)] overflow-y-auto rounded-sm border border-paper/25 bg-ink p-3 shadow-[6px_6px_0_0_#0b0b0c] sm:right-5"
+        >
+          <ol className="flex flex-col gap-0.5">
+            {SECTIONS.map((s) => (
+              <li key={s.id}>
+                <a
+                  href={`#${s.id}`}
+                  onClick={(e) => {
+                    setOpen(false);
+                    // In Slideshow Mode a chapter jumps to its first slide instead of anchoring.
+                    if (slideshow.active) {
+                      e.preventDefault();
+                      slideshow.goToSection(s.id);
+                    }
+                  }}
+                  aria-current={s.id === activeId ? "location" : undefined}
+                  className="flex items-baseline gap-3 rounded-sm px-3 py-2 font-serif text-paper/90 transition hover:bg-paper/5 aria-[current=location]:text-amber"
+                >
+                  {s.number !== undefined && (
+                    <span className="font-display text-sm text-amber">{pad(s.number)}</span>
+                  )}
+                  <span>{s.title}</span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
       )}
 
-      {/* bottom control bar */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex items-end justify-between gap-3 p-3 sm:p-5">
-        <div className="pointer-events-auto flex items-center gap-2">
-          <button
-            onClick={() => setMenuOpen(true)}
-            aria-label="Open table of contents"
-            className="flex items-center gap-2 rounded-full border border-paper/25 bg-ink/60 px-3 py-2 text-paper backdrop-blur-sm transition hover:border-paper/60"
-          >
-            <Menu size={16} />
-            {!presentationMode && (
-              <span className="hidden font-display text-[11px] tracking-[0.2em] sm:inline">
-                FIFTEEN SECONDS
-              </span>
-            )}
-          </button>
-          {inChapter && !presentationMode && (
-            <span className="rounded-full border border-paper/20 bg-ink/60 px-3 py-2 font-display text-xs tracking-[0.2em] text-paper/80 backdrop-blur-sm">
-              {String(chapterIndex).padStart(2, "0")} / {CHAPTERS.length}
-            </span>
-          )}
-        </div>
-
-        <div className="pointer-events-auto flex items-center gap-2">
-          <button
-            onClick={onToggleSound}
-            aria-label={soundEnabled ? "Mute ambient sound" : "Enable ambient sound"}
-            aria-pressed={soundEnabled}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-paper/25 bg-ink/60 text-paper backdrop-blur-sm transition hover:border-paper/60"
-          >
-            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-          </button>
-          {inChapter && (
-            <>
-              <button
-                onClick={onPrev}
-                disabled={chapterIndex <= 1}
-                aria-label="Previous chapter"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-paper/25 bg-ink/60 text-paper backdrop-blur-sm transition hover:border-paper/60 disabled:opacity-30"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <button
-                onClick={onNext}
-                aria-label="Next chapter"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-paper/25 bg-ink/60 text-paper backdrop-blur-sm transition hover:border-paper/60"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-ink/95 p-6 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Table of contents"
-          >
-            <button
-              onClick={() => setMenuOpen(false)}
-              aria-label="Close menu"
-              className="absolute top-6 right-6 text-paper/70 transition hover:text-paper"
-            >
-              <X size={28} />
-            </button>
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="w-full max-w-2xl"
-            >
-              <p className="mb-6 text-center font-display text-sm tracking-[0.35em] text-paper/50">
-                TABLE OF CONTENTS
-              </p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {CHAPTERS.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => {
-                      onJump(c.id);
-                      setMenuOpen(false);
-                    }}
-                    className="flex items-center gap-4 rounded-md border border-paper/15 px-4 py-3 text-left transition hover:border-amber/60 hover:bg-paper/5"
-                  >
-                    <span className="font-display text-lg text-amber">{String(c.id).padStart(2, "0")}</span>
-                    <span className="font-serif text-paper/90">{c.title}</span>
-                  </button>
-                ))}
-                <button
-                  onClick={() => {
-                    onJump(11);
-                    setMenuOpen(false);
-                  }}
-                  className="flex items-center gap-4 rounded-md border border-paper/15 px-4 py-3 text-left transition hover:border-amber/60 hover:bg-paper/5 sm:col-span-2"
-                >
-                  <span className="font-display text-lg text-amber">✕</span>
-                  <span className="font-serif text-paper/90">What Will You Not Do Today?</span>
-                </button>
-              </div>
-              <p className="mt-8 text-center font-serif text-xs text-paper/40">
-                Press <kbd className="rounded border border-paper/30 px-1">P</kbd> for presentation mode ·{" "}
-                <kbd className="rounded border border-paper/30 px-1">E</kbd> to restart the experience
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <p className="sr-only" aria-live="polite">
+        {active ? `Now reading: ${active.title}` : ""}
+      </p>
     </>
   );
 }

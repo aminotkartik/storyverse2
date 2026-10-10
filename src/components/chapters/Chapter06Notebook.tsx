@@ -1,133 +1,105 @@
-import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChapterLabel, ContinueButton } from "../ui/Shared";
-import { NOTEBOOK_PAGES, CIVIC_STATS } from "../../data/content";
-import type { SoundApi } from "../../hooks/useSound";
+import { motion, useTransform, type MotionValue } from "framer-motion";
+import { StorySection, type SceneContext } from "../story/StorySection";
+import { Beat } from "../story/Beat";
+import { useDiscrete } from "../../hooks/useDiscrete";
+import { CIVIC_STATS, NOTEBOOK_PAGES } from "../../data/content";
+import { progressIn } from "../../utils/motion";
 
-const TOTAL_PAGES = NOTEBOOK_PAGES.length + 2; // + stats page + final page
+const PAGE_START = 0.04;
+const PAGE_STEP = 0.12;
+const STATS_FROM = 0.66;
+const STATS_TO = 0.8;
+const FINAL_AT = 0.86;
 
-export default function Chapter06Notebook({ onNext, sound }: { onNext: () => void; sound: SoundApi }) {
-  const [page, setPage] = useState(0);
-  const [dir, setDir] = useState(1);
+/** Which field-note page is in front, or -1 before the first page. */
+function pageAt(v: number): number {
+  if (v < PAGE_START) return -1;
+  return Math.min(NOTEBOOK_PAGES.length - 1, Math.floor((v - PAGE_START) / PAGE_STEP));
+}
 
-  const turn = (d: 1 | -1) => {
-    const next = page + d;
-    if (next < 0 || next >= TOTAL_PAGES) return;
-    sound.pageTurn();
-    setDir(d);
-    setPage(next);
-  };
+export default function Chapter06Notebook() {
+  return (
+    <StorySection id="chapter-06" number={6} title="The Numbers" heightClass="h-[340vh]">
+      {(scene) => <NotebookScene {...scene} />}
+    </StorySection>
+  );
+}
 
-  const isNotebook = page < NOTEBOOK_PAGES.length;
-  const isStats = page === NOTEBOOK_PAGES.length;
-  const isFinal = page === NOTEBOOK_PAGES.length + 1;
+function NotebookScene({ progress }: SceneContext) {
+  const page = useDiscrete(progress, pageAt);
 
   return (
-    <div className="relative flex h-full w-full flex-col items-center justify-center overflow-y-auto bg-[#ded6c2] px-5 py-20 text-ink">
-      <div className="halftone-light absolute inset-0 opacity-30" />
-      <ChapterLabel index={6} title="The Numbers" />
+    <div className="absolute inset-0 bg-charcoal">
+      <div className="grain absolute inset-0" />
 
-      <div className="relative z-10 flex w-full max-w-2xl flex-col items-center">
-        <div className="relative h-[20rem] w-full overflow-hidden rounded-sm border-2 border-ink bg-[#f3ede2] shadow-[6px_6px_0_0_#0b0b0c] sm:h-[22rem]">
-          <AnimatePresence mode="wait" custom={dir}>
-            {isNotebook && (
-              <motion.div
-                key={`n-${page}`}
-                custom={dir}
-                initial={{ x: dir > 0 ? 80 : -80, opacity: 0, rotate: dir > 0 ? 4 : -4 }}
-                animate={{ x: 0, opacity: 1, rotate: 0 }}
-                exit={{ x: dir > 0 ? -80 : 80, opacity: 0, rotate: dir > 0 ? -4 : 4 }}
-                transition={{ duration: 0.4 }}
-                className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center"
-              >
-                <p className="font-serif text-xs tracking-widest text-ink/50 uppercase">
-                  Field note {page + 1} / {NOTEBOOK_PAGES.length}
+      <div className="absolute top-16 left-5 font-display text-[11px] tracking-[0.3em] text-paper/60 sm:left-10">
+        FIELD NOTES {String(Math.max(0, page + 1)).padStart(2, "0")} / {String(NOTEBOOK_PAGES.length).padStart(2, "0")}
+      </div>
+
+      <div className="absolute inset-0 flex items-center justify-center px-5">
+        {NOTEBOOK_PAGES.map((p, i) => {
+          const from = PAGE_START + i * PAGE_STEP;
+          return (
+            <Beat
+              key={p.label}
+              progress={progress}
+              from={from}
+              to={from + PAGE_STEP * 0.9}
+              rise={24}
+              className="absolute w-full max-w-sm"
+            >
+              <article className="relative rotate-[-1.5deg] border-2 border-ink bg-paper px-7 py-8 text-ink shadow-[6px_6px_0_0_#0b0b0c]">
+                <p className="font-serif text-[11px] tracking-widest text-ink/60 uppercase">
+                  Field note {i + 1} / {NOTEBOOK_PAGES.length}
                 </p>
-                <p className="font-display text-6xl text-danger sm:text-7xl">{NOTEBOOK_PAGES[page].seconds}</p>
-                <p className="font-hand text-2xl text-ink sm:text-3xl">{NOTEBOOK_PAGES[page].label}</p>
-                <p className="font-serif text-xs text-ink/50 italic">seconds needed to cross, safely</p>
-              </motion.div>
-            )}
-
-            {isStats && (
-              <motion.div
-                key="stats"
-                custom={dir}
-                initial={{ x: 80, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -80, opacity: 0 }}
-                transition={{ duration: 0.4 }}
-                className="absolute inset-0 flex flex-col justify-center gap-4 p-6 sm:p-10"
-              >
-                <p className="mb-2 text-center font-serif text-xs tracking-widest text-ink/50 uppercase">
-                  What Tara counted in one week
+                <p className="mt-3 font-display text-7xl leading-none text-danger sm:text-8xl">{p.seconds}</p>
+                <p className="mt-2 font-display text-sm tracking-widest text-ink/70">SECONDS NEEDED</p>
+                <p className="mt-4 font-hand text-2xl text-ink sm:text-3xl">{p.label}</p>
+                <div className="mt-6 h-px w-full bg-ink/20" />
+                <p className="mt-3 font-serif text-xs text-ink/60 italic">
+                  Written by hand, from observation. Crossing times are story values.
                 </p>
-                {CIVIC_STATS.map((s, i) => (
-                  <div key={s.label}>
-                    <div className="mb-1 flex justify-between font-serif text-[11px] tracking-wide text-ink/70">
-                      <span>{s.label}</span>
-                      <span>{Math.round(s.value * 100)}%</span>
-                    </div>
-                    <div className="h-3 w-full rounded-full bg-ink/10">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${s.value * 100}%` }}
-                        transition={{ duration: 1, delay: i * 0.15 }}
-                        className="h-3 rounded-full bg-danger"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            )}
+              </article>
+            </Beat>
+          );
+        })}
+      </div>
 
-            {isFinal && (
-              <motion.div
-                key="final"
-                custom={dir}
-                initial={{ x: 80, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -80, opacity: 0 }}
-                transition={{ duration: 0.4 }}
-                className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-8 text-center"
-              >
-                <p className="font-hand text-3xl leading-snug text-ink sm:text-4xl">
-                  “The timer wasn't the problem.
-                  <br />
-                  The assumption was.”
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <div className="mt-6 flex items-center gap-6">
-          <button
-            onClick={() => turn(-1)}
-            disabled={page === 0}
-            className="rounded-full border border-ink/30 px-4 py-2 font-display text-xs tracking-widest text-ink/70 transition hover:border-ink disabled:opacity-20"
-          >
-            ← PREV
-          </button>
-          <span className="font-serif text-xs text-ink/50">
-            {page + 1} / {TOTAL_PAGES}
-          </span>
-          <button
-            onClick={() => turn(1)}
-            disabled={page === TOTAL_PAGES - 1}
-            className="rounded-full border border-ink/30 px-4 py-2 font-display text-xs tracking-widest text-ink/70 transition hover:border-ink disabled:opacity-20"
-          >
-            NEXT →
-          </button>
-        </div>
-
-        {isFinal && (
-          <div className="mt-8">
-            <ContinueButton onClick={onNext} variant="light">
-              Start the campaign
-            </ContinueButton>
+      <Beat progress={progress} from={STATS_FROM} to={STATS_TO} className="absolute inset-x-5 top-1/2 mx-auto max-w-md -translate-y-1/2 sm:inset-x-0">
+        <div className="rounded-sm border-2 border-ink bg-paper px-6 py-6 text-ink shadow-[6px_6px_0_0_#0b0b0c]">
+          <p className="font-display text-xl tracking-wide">WHAT THE CITY TALLIED</p>
+          <p className="mt-1 font-serif text-xs text-ink/65 italic">
+            Illustrative values from the story, not survey data.
+          </p>
+          <div className="mt-5 flex flex-col gap-4">
+            {CIVIC_STATS.map((s, i) => (
+              <StatBar key={s.label} label={s.label} value={s.value} start={STATS_FROM + 0.01 + i * 0.02} progress={progress} />
+            ))}
           </div>
-        )}
+        </div>
+      </Beat>
+
+      <Beat progress={progress} from={FINAL_AT} className="absolute inset-x-0 bottom-[14%] px-6 text-center">
+        <p className="mx-auto max-w-2xl font-display text-2xl leading-snug tracking-wide text-paper uppercase sm:text-5xl">
+          The timer wasn't the problem.
+          <br />
+          <span className="text-amber">The assumption was.</span>
+        </p>
+      </Beat>
+    </div>
+  );
+}
+
+function StatBar({ label, value, start, progress }: { label: string; value: number; start: number; progress: MotionValue<number> }) {
+  const width = useTransform(progress, (v) => `${Math.round(progressIn(v, start, start + 0.08) * value * 100)}%`);
+  return (
+    <div>
+      <div className="mb-1 flex items-baseline justify-between font-display text-xs tracking-widest">
+        <span>{label}</span>
+        <span className="text-danger">{Math.round(value * 100)}%</span>
+      </div>
+      <div className="h-3 w-full bg-ink/10">
+        <motion.div className="h-full bg-danger" style={{ width }} />
       </div>
     </div>
   );

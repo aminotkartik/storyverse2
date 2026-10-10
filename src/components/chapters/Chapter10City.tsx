@@ -1,135 +1,82 @@
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChapterLabel, ContinueButton } from "../ui/Shared";
+import { motion, useTransform } from "framer-motion";
+import { StorySection, type SceneContext } from "../story/StorySection";
+import { Beat } from "../story/Beat";
+import { useDiscrete } from "../../hooks/useDiscrete";
+import { useSlideshow } from "../../context/PresentationContext";
+import { asset } from "../../utils/asset";
 
-const ZOOM_LABELS = ["a crossing", "a street", "a neighbourhood", "a city", "a sea of people"];
+const ZOOM_LABELS = ["a crossing", "a street", "a neighbourhood", "a city", "a sea of people"] as const;
+const LABEL_FROM = 0.04;
+const LABEL_STEP = 0.14;
+const FINAL_AT = 0.86;
 
-export default function Chapter10City({ onNext }: { onNext: () => void }) {
-  const [started, setStarted] = useState(false);
-  const [zoomStep, setZoomStep] = useState(0);
-  const [messageStep, setMessageStep] = useState(0);
+/** Which zoom level the reader has reached, from 0 (closest) to the last label. */
+function labelAt(v: number): number {
+  if (v < LABEL_FROM) return -1;
+  return Math.min(ZOOM_LABELS.length - 1, Math.floor((v - LABEL_FROM) / LABEL_STEP));
+}
 
-  useEffect(() => {
-    if (!started) return;
-    const timers: number[] = [];
-    ZOOM_LABELS.forEach((_, i) => {
-      timers.push(window.setTimeout(() => setZoomStep(i + 1), 1000 + i * 1300));
-    });
-    timers.push(
-      window.setTimeout(() => setMessageStep(1), 1000 + ZOOM_LABELS.length * 1300 + 600)
-    );
-    return () => timers.forEach((t) => window.clearTimeout(t));
-  }, [started]);
+export default function Chapter10City() {
+  return (
+    <StorySection id="chapter-10" number={10} title="The City" heightClass="h-[320vh]">
+      {(scene) => <CityScene {...scene} />}
+    </StorySection>
+  );
+}
 
-  useEffect(() => {
-    if (messageStep === 0) return;
-    const delays = [0, 2200, 4200, 6200, 8200];
-    const timers: number[] = [];
-    for (let s = messageStep; s < 5; s++) {
-      timers.push(window.setTimeout(() => setMessageStep(s + 1), delays[s] ?? 2000));
-    }
-    return () => timers.forEach((t) => window.clearTimeout(t));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messageStep === 1]);
-
-  const scale = 5 - Math.min(zoomStep, ZOOM_LABELS.length) * 0.8;
+function CityScene({ progress, reduced }: SceneContext) {
+  const level = useDiscrete(progress, labelAt);
+  const slideshow = useSlideshow();
+  // Start close on the street below the rooftop and pull back to the whole city.
+  const scale = useTransform(progress, [0, 0.7], reduced ? [1, 1] : [2.6, 1]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-ink">
-      <motion.div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url(/images/city-aerial.jpg)" }}
-        animate={{ scale: started ? scale : 5 }}
-        transition={{ duration: 1.2, ease: "easeInOut" }}
+    <div className="absolute inset-0 overflow-hidden bg-ink">
+      <motion.img
+        src={asset("images/city-aerial.jpg")}
+        alt="An aerial view at dusk over a dense city: rooftops, a temple tower, a market street full of rickshaws and people, and a wide river in the distance."
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ scale, transformOrigin: "62% 80%" }}
       />
-      <div className="absolute inset-0 bg-ink/55" />
+      <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/30 to-ink/50" />
       <div className="grain absolute inset-0" />
 
-      <ChapterLabel index={10} title="The City" />
+      <p className="absolute top-20 left-5 font-display text-[11px] tracking-[0.3em] text-paper/80 sm:left-10" aria-live="polite">
+        {level >= 0 ? `VIEW: ${ZOOM_LABELS[level].toUpperCase()}` : "VIEW: A CROSSING"}
+      </p>
 
-      {!started && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center">
-          <button
-            onClick={() => setStarted(true)}
-            className="rounded-sm border border-paper/40 px-6 py-3 font-display text-sm tracking-[0.2em] text-paper transition hover:border-paper"
-          >
-            ZOOM OUT
-          </button>
-        </div>
-      )}
-
-      {started && messageStep === 0 && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center">
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={zoomStep}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="font-display text-2xl tracking-widest text-paper/80 sm:text-4xl"
+      <div className="absolute inset-x-0 bottom-[12%] px-6 text-center">
+        <Beat progress={progress} from={0.08} to={0.28} className="absolute inset-x-6 bottom-0">
+          <p className="font-display text-2xl leading-snug text-paper sm:text-4xl">
+            A CITY SHOULD NOT ASK PEOPLE TO BECOME FASTER.
+          </p>
+        </Beat>
+        <Beat progress={progress} from={0.3} to={0.48} className="absolute inset-x-6 bottom-0">
+          <p className="font-display text-2xl leading-snug text-amber sm:text-4xl">IT SHOULD LEARN TO BECOME FAIRER.</p>
+        </Beat>
+        <Beat progress={progress} from={0.5} to={0.64} className="absolute inset-x-6 bottom-0">
+          <p className="font-serif text-lg text-paper/85 italic sm:text-xl">“A civil society doesn't begin with big laws.”</p>
+        </Beat>
+        <Beat progress={progress} from={0.66} to={0.8} className="absolute inset-x-6 bottom-0">
+          <p className="font-serif text-lg text-paper/85 italic sm:text-xl">“It begins with small things we choose not to do.”</p>
+        </Beat>
+        <Beat progress={progress} from={FINAL_AT} className="absolute inset-x-6 bottom-0">
+          <p className="font-display text-2xl leading-tight tracking-wide text-paper sm:text-5xl">
+            DON'T DESIGN FOR THE AVERAGE HUMAN.
+            <br />
+            <span className="text-amber">BUILD FOR HUMANITY.</span>
+          </p>
+          {/* The link lives in the final beat so it sits above the slideshow control bar. */}
+          {!slideshow.active && (
+            <a
+              href="#commitments"
+              className="mt-8 inline-block font-display text-xs tracking-[0.25em] text-paper/80 underline decoration-amber decoration-2 underline-offset-8 transition hover:text-amber focus-visible:outline-2 focus-visible:outline-amber"
             >
-              {zoomStep === 0 ? "" : ZOOM_LABELS[Math.min(zoomStep - 1, ZOOM_LABELS.length - 1)]}
-            </motion.p>
-          </AnimatePresence>
-        </div>
-      )}
-
-      {messageStep > 0 && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 bg-ink/40 px-6 text-center">
-          <AnimatePresence>
-            {messageStep >= 1 && (
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="font-display text-2xl text-paper sm:text-4xl"
-              >
-                A CITY SHOULD NOT ASK PEOPLE
-                <br />
-                TO BECOME FASTER.
-              </motion.p>
-            )}
-            {messageStep >= 2 && (
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="font-display text-2xl text-amber sm:text-4xl"
-              >
-                IT SHOULD LEARN
-                <br />
-                TO BECOME FAIRER.
-              </motion.p>
-            )}
-            {messageStep >= 3 && (
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="font-serif text-paper/80 italic"
-              >
-                “A civil society doesn't begin with big laws.”
-              </motion.p>
-            )}
-            {messageStep >= 4 && (
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="font-serif text-paper/80 italic"
-              >
-                “It begins with small things we choose not to do.”
-              </motion.p>
-            )}
-            {messageStep >= 5 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 space-y-8">
-                <p className="font-display text-xl text-paper sm:text-3xl">
-                  DON'T DESIGN FOR THE AVERAGE HUMAN.
-                  <br />
-                  BUILD FOR HUMANITY.
-                </p>
-                <ContinueButton onClick={onNext}>What will you not do today?</ContinueButton>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
+              WHAT WILL YOU NOT DO TODAY? ↓
+            </a>
+          )}
+        </Beat>
+      </div>
     </div>
   );
 }

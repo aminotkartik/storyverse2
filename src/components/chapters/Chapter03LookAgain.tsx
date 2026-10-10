@@ -1,109 +1,171 @@
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChapterLabel, ContinueButton } from "../ui/Shared";
+import { AnimatePresence, motion, useTransform, type MotionValue } from "framer-motion";
+import { StorySection, type SceneContext } from "../story/StorySection";
+import { Beat } from "../story/Beat";
+import { useChangeEffect, useDiscrete } from "../../hooks/useDiscrete";
+import { useSound } from "../../context/SoundContext";
 import { HOTSPOTS } from "../../data/content";
-import type { SoundApi } from "../../hooks/useSound";
+import { asset } from "../../utils/asset";
 
-export default function Chapter03LookAgain({ onNext, sound }: { onNext: () => void; sound: SoundApi }) {
-  const [active, setActive] = useState<string | null>(null);
-  const [found, setFound] = useState<Set<string>>(new Set());
+const FIRST_REVEAL = 0.14;
+const REVEAL_STEP = 0.14;
 
-  const reveal = (id: string) => {
-    setActive(id);
-    sound.beep(1100);
-    setFound((f) => new Set(f).add(id));
-  };
+/** Index of the most recently revealed hotspot, or -1 before the first one. */
+function latestAt(v: number): number {
+  if (v < FIRST_REVEAL) return -1;
+  return Math.min(HOTSPOTS.length - 1, Math.floor((v - FIRST_REVEAL) / REVEAL_STEP));
+}
 
-  const allFound = found.size === HOTSPOTS.length;
-  const activeSpot = HOTSPOTS.find((h) => h.id === active);
+export default function Chapter03LookAgain() {
+  return (
+    <StorySection id="chapter-03" number={3} title="Look Again" heightClass="h-[300vh]">
+      {(scene) => <StreetScene {...scene} />}
+    </StorySection>
+  );
+}
+
+function StreetScene({ progress, reduced }: SceneContext) {
+  const sound = useSound();
+  const latest = useDiscrete(progress, latestAt);
+  // A manual pick only applies to the hotspot set it was made in; scrolling on
+  // to a new hotspot hands control back to the scroll position.
+  const [picked, setPicked] = useState<{ at: number; index: number } | null>(null);
+
+  useChangeEffect(latest, (prev, next) => {
+    if (next > prev) sound.beep(1100);
+  });
+
+  const shown = picked && picked.at === latest ? picked.index : latest;
+  const spot = shown >= 0 ? HOTSPOTS[shown] : null;
+
+  const pan = useTransform(progress, [0, 1], reduced ? ["0%", "0%"] : ["1.5%", "-1.5%"]);
+  const zoom = useTransform(progress, [0, 0.9], reduced ? [1, 1] : [1.08, 1.02]);
 
   return (
-    <div className="manga-cursor relative h-full w-full overflow-hidden bg-ink">
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url(/images/lookagain-street.jpg)", filter: "grayscale(0.15)" }}
-      />
-      <div className="absolute inset-0 bg-ink/35" />
+    <div className="absolute inset-0 overflow-hidden bg-ink" style={{ containerType: "size" }}>
+      <motion.div className="absolute inset-0" style={{ x: pan, scale: zoom }}>
+        {/*
+         * A frame with the photo's own 3:2 ratio. On wide screens it covers the stage, like
+         * object-cover. On portrait screens it fits the full width, so every hotspot stays on
+         * screen (a cover crop would show only the middle of the street). Hotspot percentages
+         * therefore refer to the image, not the viewport.
+         */}
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          style={{ width: "100cqw", height: "66.667cqw" }}
+        >
+          <img
+            src={asset("images/lookagain-street.jpg")}
+            alt="A busy street: a car parked on the footpath, a garbage heap by the bin, a car on the zebra crossing, a motorbike, a blocked accessibility ramp, and a honking driver."
+            className="absolute inset-0 h-full w-full"
+            style={{ filter: "grayscale(0.15) brightness(0.8)" }}
+          />
+          {HOTSPOTS.map((spotData, i) => (
+            <Marker
+              key={spotData.id}
+              index={i}
+              label={spotData.label}
+              x={spotData.x}
+              y={spotData.y}
+              progress={progress}
+              selected={shown === i}
+              revealed={i <= latest}
+              onSelect={() => setPicked({ at: latest, index: i })}
+            />
+          ))}
+        </div>
+      </motion.div>
+      <div className="absolute inset-0 bg-ink/30" />
       <div className="grain absolute inset-0" />
 
-      <ChapterLabel index={3} title="Look Again" />
+      <Beat progress={progress} from={0} to={0.13} className="absolute inset-x-0 top-20 text-center">
+        <h3 className="font-display text-4xl tracking-widest text-paper drop-shadow-lg sm:text-6xl">LOOK AGAIN.</h3>
+      </Beat>
 
-      <div className="pointer-events-none absolute top-20 left-1/2 z-10 -translate-x-1/2 text-center sm:top-24">
-        <AnimatePresence>
-          {!allFound && (
-            <motion.h2
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="font-display text-3xl tracking-widest text-paper drop-shadow-lg sm:text-5xl"
+      <p className="absolute bottom-[calc(38%+1rem)] left-5 font-display text-[11px] tracking-[0.25em] text-paper/80 sm:left-10 sm:bottom-auto sm:top-44">
+        {String(Math.max(0, latest + 1)).padStart(2, "0")} / {String(HOTSPOTS.length).padStart(2, "0")} NOTICED
+      </p>
+
+      <div className="absolute inset-x-0 bottom-6 flex justify-center px-4 sm:bottom-10">
+        <AnimatePresence mode="wait">
+          {spot && (
+            <motion.div
+              key={spot.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.25 }}
+              className="w-full max-w-md rounded-sm border-2 border-ink bg-paper px-5 py-4 text-ink shadow-[5px_5px_0_0_#0b0b0c]"
+              role="status"
             >
-              LOOK AGAIN.
-            </motion.h2>
+              <p className="font-display text-xs tracking-[0.2em] text-danger uppercase">{spot.label}</p>
+              <p className="mt-1 font-hand text-xl leading-snug whitespace-pre-line sm:text-2xl">{spot.reveal}</p>
+            </motion.div>
           )}
         </AnimatePresence>
-        {!allFound && (
-          <p className="mt-2 font-serif text-xs text-paper/70 sm:text-sm">
-            {found.size} / {HOTSPOTS.length} noticed — tap the glowing points
-          </p>
-        )}
       </div>
 
-      {HOTSPOTS.map((h) => (
-        <button
-          key={h.id}
-          onClick={() => reveal(h.id)}
-          aria-label={h.label}
-          className="absolute z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
-          style={{ left: `${h.x}%`, top: `${h.y}%` }}
-        >
-          <span
-            className={`absolute inline-flex h-full w-full rounded-full ${
-              found.has(h.id) ? "bg-paper/10" : "bg-danger/50 animate-pulse-soft"
-            }`}
-          />
-          <span
-            className={`relative h-3 w-3 rounded-full border-2 ${
-              found.has(h.id) ? "border-paper/50 bg-transparent" : "border-danger bg-danger"
-            }`}
-          />
-        </button>
-      ))}
-
-      <AnimatePresence>
-        {activeSpot && (
-          <motion.div
-            key={activeSpot.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="absolute inset-x-0 bottom-24 z-20 mx-auto w-[92%] max-w-md rounded-md border-2 border-ink bg-paper px-5 py-4 text-ink shadow-[5px_5px_0_0_#0b0b0c] sm:bottom-28"
-          >
-            <p className="font-display text-xs tracking-[0.2em] text-danger uppercase">
-              {activeSpot.label}
-            </p>
-            <p className="mt-1 whitespace-pre-line font-hand text-xl leading-snug sm:text-2xl">
-              {activeSpot.reveal}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {allFound && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-6 bg-ink/85 px-6 text-center"
-          >
-            <p className="max-w-lg font-serif text-xl text-paper/90 italic sm:text-2xl">
-              Nothing here was hidden.
-              <br />
-              We just stopped looking.
-            </p>
-            <ContinueButton onClick={onNext}>Ask why</ContinueButton>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Beat progress={progress} from={0.86} className="absolute inset-x-0 top-20 px-6 text-center">
+        <p className="mx-auto max-w-lg font-serif text-xl leading-snug text-paper italic drop-shadow-lg sm:text-3xl">
+          Nothing here was hidden.
+          <br />
+          We just stopped looking.
+        </p>
+      </Beat>
     </div>
+  );
+}
+
+function Marker({
+  index,
+  label,
+  x,
+  y,
+  progress,
+  selected,
+  revealed,
+  onSelect,
+}: {
+  index: number;
+  label: string;
+  x: number;
+  y: number;
+  progress: MotionValue<number>;
+  selected: boolean;
+  revealed: boolean;
+  onSelect: () => void;
+}) {
+  const start = FIRST_REVEAL + index * REVEAL_STEP;
+  const opacity = useTransform(progress, [start - 0.01, start + 0.02], [0, 1]);
+  const ring = useTransform(progress, [start, start + 0.07], [0, 1]);
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onSelect}
+      disabled={!revealed}
+      style={{ left: `${x}%`, top: `${y}%`, opacity }}
+      aria-label={`${label}: show what it shows`}
+      aria-pressed={selected}
+      className="absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full disabled:pointer-events-none"
+    >
+      <svg viewBox="0 0 48 48" className="absolute inset-0 h-full w-full" aria-hidden="true">
+        <motion.circle
+          cx={24}
+          cy={24}
+          r={20}
+          fill="none"
+          stroke="#c73e2d"
+          strokeWidth={1.8}
+          style={{ pathLength: ring }}
+          transform="rotate(-90 24 24)"
+        />
+      </svg>
+      <span
+        className={`h-3 w-3 rounded-full border-2 ${
+          selected ? "border-paper bg-paper" : "border-danger bg-danger animate-pulse-soft"
+        }`}
+      />
+    </motion.button>
   );
 }

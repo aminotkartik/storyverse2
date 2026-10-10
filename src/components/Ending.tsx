@@ -1,98 +1,89 @@
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ContinueButton } from "./ui/Shared";
-import { ENDING_CHOICES, SEED_NOTES } from "../data/content";
-import type { SoundApi } from "../hooks/useSound";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { COMMITMENTS } from "../data/content";
+import { useSound } from "../context/SoundContext";
+import { readCommitments, writeCommitments } from "../utils/commitments";
 
-const STORAGE_KEY = "fifteen-seconds-notes";
-const ROTATIONS = [-6, 4, -3, 7, -8, 2, 5, -4, 6, -2, 3, -5];
+export default function Ending() {
+  const sound = useSound();
+  const [selected, setSelected] = useState<string[]>(() => readCommitments());
 
-export default function Ending({ onNext, sound }: { onNext: () => void; sound: SoundApi }) {
-  const [notes, setNotes] = useState<string[]>(SEED_NOTES);
-  const [chosen, setChosen] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      if (Array.isArray(saved) && saved.length) setNotes([...SEED_NOTES, ...saved]);
-    } catch {
-      /* ignore corrupt storage */
-    }
-  }, []);
-
-  const choose = (text: string) => {
-    setChosen(text);
+  const toggle = (id: string) => {
+    const next = selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id];
+    setSelected(next);
+    writeCommitments(next);
     sound.pageTurn();
-    setNotes((n) => [...n, text]);
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...(Array.isArray(saved) ? saved : []), text]));
-    } catch {
-      /* storage unavailable, ignore */
-    }
+  };
+
+  const clear = () => {
+    setSelected([]);
+    writeCommitments([]);
   };
 
   return (
-    <div className="relative flex h-full w-full flex-col items-center overflow-y-auto bg-[#ded6c2] px-5 pt-20 pb-28 text-ink sm:px-10">
-      <div className="halftone-light absolute inset-0 opacity-30" />
+    <section
+      id="commitments"
+      aria-labelledby="commitments-heading"
+      className="relative flex min-h-svh items-center justify-center bg-paper px-5 py-24 text-ink sm:px-10"
+    >
+      <div className="halftone-light pointer-events-none absolute inset-0 opacity-25" aria-hidden="true" />
 
-      <div className="relative z-10 flex w-full max-w-3xl flex-col items-center text-center">
-        <AnimatePresence mode="wait">
-          {!chosen ? (
-            <motion.div key="choices" exit={{ opacity: 0 }} className="flex w-full flex-col items-center gap-8">
-              <h2 className="font-display text-3xl tracking-wide sm:text-5xl">WHAT WILL YOU NOT DO TODAY?</h2>
-              <div className="flex w-full max-w-xl flex-col gap-3">
-                {ENDING_CHOICES.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => choose(c)}
-                    className="rounded-sm border-2 border-ink/70 bg-paper px-5 py-3 text-left font-serif transition hover:-translate-y-0.5 hover:border-ink hover:shadow-[3px_3px_0_0_#0b0b0c]"
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.3 }}
+        transition={{ duration: 0.7 }}
+        className="relative z-10 w-full max-w-xl"
+      >
+        <h2 id="commitments-heading" className="font-display text-4xl leading-none tracking-wide sm:text-6xl">
+          WHAT WILL YOU NOT DO TODAY?
+        </h2>
+        <p className="mt-4 font-serif text-base text-ink/75">
+          Tick the ones you mean. Nothing is required, and nothing is submitted anywhere.
+        </p>
+
+        <fieldset className="mt-8">
+          <legend className="sr-only">Commitments</legend>
+          <ul className="flex flex-col gap-3">
+            {COMMITMENTS.map((c) => {
+              const checked = selected.includes(c.id);
+              return (
+                <li key={c.id}>
+                  <label
+                    className={`flex cursor-pointer items-start gap-4 rounded-sm border-2 px-4 py-3 font-serif text-base transition ${
+                      checked ? "border-ink bg-ink text-paper" : "border-ink/25 hover:border-ink"
+                    }`}
                   >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="done"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex w-full flex-col items-center gap-8"
-            >
-              <p className="font-hand text-3xl sm:text-4xl">“{chosen}”</p>
-              <p className="font-display text-xl tracking-wide sm:text-2xl">
-                MAYBE CIVIC SENSE
-                <br />
-                IS JUST EMPATHY
-                <br />
-                MADE VISIBLE.
-              </p>
-              <ContinueButton onClick={onNext} variant="light">
-                Leave the city
-              </ContinueButton>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(c.id)}
+                      className="mt-1 h-4 w-4 shrink-0 accent-amber focus-visible:outline-2 focus-visible:outline-amber"
+                    />
+                    <span>{c.text}</span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </fieldset>
 
-        <div className="mt-14 w-full">
-          <p className="mb-4 font-serif text-xs tracking-widest text-ink/50 uppercase">
-            notes left by others who passed through
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+          <p className="font-serif text-xs text-ink/65" aria-live="polite">
+            {selected.length} of {COMMITMENTS.length} kept. Saved only in this browser, on this device. It is not
+            shared with other visitors.
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            {notes.map((n, i) => (
-              <motion.span
-                key={`${n}-${i}`}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1, rotate: ROTATIONS[i % ROTATIONS.length] }}
-                className="rounded-sm border border-ink/30 bg-paper px-3 py-2 font-hand text-base text-ink/80 shadow-sm sm:text-lg"
-              >
-                {n}
-              </motion.span>
-            ))}
-          </div>
+          {selected.length > 0 && (
+            <button
+              type="button"
+              onClick={clear}
+              className="font-display text-xs tracking-[0.2em] text-ink/70 underline underline-offset-4 hover:text-danger focus-visible:outline-2 focus-visible:outline-amber"
+            >
+              CLEAR MY CHOICES
+            </button>
+          )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </section>
   );
 }

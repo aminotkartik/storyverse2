@@ -1,12 +1,19 @@
 import { motion } from "framer-motion";
+import { useSlideshow } from "../context/PresentationContext";
 
-export default function FinalScreen({ onRestart }: { onRestart: () => void }) {
+export default function FinalScreen() {
+  const slideshow = useSlideshow();
   return (
-    <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-[#f3ede2] px-6 text-center text-ink">
-      <div className="halftone-light absolute inset-0 opacity-20" />
+    <section
+      id="closing"
+      aria-labelledby="closing-heading"
+      className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-[#ede4d3] px-6 py-24 text-center text-ink"
+    >
+      <div className="halftone-light pointer-events-none absolute inset-0 opacity-20" aria-hidden="true" />
       <motion.div
         initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.5 }}
         transition={{ duration: 1 }}
         className="relative z-10 flex max-w-xl flex-col items-center gap-10"
       >
@@ -17,20 +24,29 @@ export default function FinalScreen({ onRestart }: { onRestart: () => void }) {
         </p>
 
         <div className="space-y-1">
-          <p className="font-display text-2xl tracking-[0.2em] sm:text-3xl">FIFTEEN SECONDS</p>
+          <h2 id="closing-heading" className="font-display text-2xl tracking-[0.2em] sm:text-3xl">
+            FIFTEEN SECONDS
+          </h2>
           <p className="font-serif text-xs tracking-widest text-ink/60 uppercase">A StoryVerse project</p>
           <p className="font-serif text-xs tracking-widest text-ink/40 uppercase">
             SDG 11 · Sustainable Cities &amp; Communities
           </p>
         </div>
 
-        <button
-          onClick={onRestart}
-          className="rounded-sm border-2 border-ink px-7 py-3 font-display text-sm tracking-[0.2em] transition hover:bg-ink hover:text-paper"
+        <a
+          href="#opening"
+          onClick={(e) => {
+            // In Slideshow Mode, "back to the beginning" returns to the first slide.
+            if (slideshow.active) {
+              e.preventDefault();
+              slideshow.goToIndex(0);
+            }
+          }}
+          className="rounded-sm border-2 border-ink px-7 py-3 font-display text-sm tracking-[0.2em] transition hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-amber"
         >
-          ENTER THE CITY AGAIN
-        </button>
+          BACK TO THE BEGINNING
+        </a>
       </motion.div>
-    </div>
+    </section>
   );
 }
