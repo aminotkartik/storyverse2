@@ -62,21 +62,23 @@ function PosterScene({ progress }: SceneContext) {
         </p>
       </Beat>
 
+      {/* The notice itself: original artwork, pasted onto the wall as the scene opens. */}
       <motion.div
         style={{ y: drop, opacity: dropOpacity }}
-        className="absolute top-[22%] left-1/2 w-40 -translate-x-1/2 rounded-sm border-2 border-ink bg-paper p-3 text-center text-ink shadow-[4px_4px_0_0_#0b0b0c] sm:w-52 sm:p-4"
+        className="absolute top-[18%] left-1/2 w-40 -translate-x-1/2 sm:w-56"
       >
         <motion.span
           aria-hidden="true"
           style={{ opacity: tear }}
-          className="absolute -top-px -right-px h-7 w-7 bg-charcoal"
+          className="absolute -top-px -right-px z-10 h-8 w-8 bg-charcoal"
         />
-        <p className="font-display text-[13px] leading-tight sm:text-base">GIVE THEM 15 SECONDS.</p>
-        <p className="mt-1.5 font-serif text-[11px] leading-snug text-ink/70 sm:text-xs">
-          Don't honk. Don't block the crossing.
-          <br />
-          Don't park on the ramp.
-        </p>
+        <img
+          src={asset("images/poster-notice.jpg")}
+          alt="The hand-made campaign notice Tara pastes on the street wall, asking people to give pedestrians their fifteen seconds."
+          width={768}
+          height={1152}
+          className="w-full rotate-[-1deg] border-2 border-ink shadow-[4px_4px_0_0_#0b0b0c]"
+        />
       </motion.div>
 
       <div className="absolute inset-x-0 bottom-[12%] z-10 h-16 px-6 text-center">
