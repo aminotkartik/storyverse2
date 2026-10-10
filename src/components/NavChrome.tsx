@@ -1,5 +1,5 @@
 import { motion, useScroll } from "framer-motion";
-import { Menu, Presentation, Volume2, VolumeX, X } from "lucide-react";
+import { Menu, Music, Presentation, Volume2, VolumeX, X } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { CHAPTERS, SECTIONS } from "../data/content";
 import { useSound } from "../context/SoundContext";
@@ -67,6 +67,27 @@ export default function NavChrome({ activeId }: { activeId: string | null }) {
           >
             {open ? <X size={16} aria-hidden="true" /> : <Menu size={16} aria-hidden="true" />}
             <span className="font-display text-[11px] tracking-[0.2em]">CHAPTERS</span>
+          </button>
+          <button
+            type="button"
+            onClick={sound.toggleMusic}
+            aria-pressed={sound.musicEnabled}
+            aria-label={
+              sound.musicEnabled ? "Music is on. Turn the music off" : "Music is off. Turn the music on"
+            }
+            className={`flex h-10 w-10 items-center justify-center rounded-full border border-paper/30 bg-ink/75 transition hover:border-paper/70 ${
+              sound.musicEnabled ? "text-amber" : "text-paper/60"
+            }`}
+          >
+            <span className="relative inline-flex">
+              <Music size={16} aria-hidden="true" />
+              {!sound.musicEnabled && (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-1/2 left-1/2 h-[1.5px] w-4 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current"
+                />
+              )}
+            </span>
           </button>
           <button
             type="button"

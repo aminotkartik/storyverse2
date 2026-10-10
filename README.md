@@ -32,6 +32,11 @@ static host.
   or skip ahead.
 - **Sound** — off by default. Use the speaker button (top right) to turn it on. When
   it is off, nothing plays, and turning it off stops the ambient bed at once.
+- **Music** — the note button beside the speaker switches the looping background bed
+  (`public/bgm.mp3`) on and off. It plays at about a fifth of full volume, under the
+  narration and the effects, and is a separate control: turning the speaker off stops
+  everything at once. Nothing plays until you opt in with either button, and if the
+  browser blocks the start, the music begins on your next click or key press.
 - **Chapter menu** — the menu button (top left) lists every chapter and the ending as
   anchor links. The current chapter is shown beside it as `NN / 10 — TITLE`. A thin
   bar at the top shows overall progress.

@@ -3,6 +3,7 @@ import { StorySection, type SceneContext } from "../story/StorySection";
 import { Beat } from "../story/Beat";
 import { useChangeEffect, useDiscrete } from "../../hooks/useDiscrete";
 import { useSound } from "../../context/SoundContext";
+import { useSlideshow } from "../../context/PresentationContext";
 import { POSTER_REACTIONS } from "../../data/content";
 import { asset } from "../../utils/asset";
 
@@ -33,6 +34,7 @@ export default function Chapter07Poster() {
 
 function PosterScene({ progress }: SceneContext) {
   const sound = useSound();
+  const slideshow = useSlideshow();
   const reaction = useDiscrete(progress, reactionAt);
 
   useChangeEffect(reaction, (_prev, next) => {
@@ -55,20 +57,22 @@ function PosterScene({ progress }: SceneContext) {
       <div className="grain absolute inset-0" />
 
       <Beat progress={progress} from={0} to={0.06} className="absolute inset-x-0 top-20 px-6 text-center">
-        <p className="font-serif text-sm tracking-widest text-paper/70 uppercase">Scroll to put the notice up</p>
+        <p className="font-serif text-base tracking-widest text-paper/80 uppercase sm:text-lg">
+          {slideshow.active ? "Use Next to put the notice up" : "Scroll to put the notice up"}
+        </p>
       </Beat>
 
       <motion.div
         style={{ y: drop, opacity: dropOpacity }}
-        className="absolute top-[22%] left-1/2 w-32 -translate-x-1/2 rounded-sm border-2 border-ink bg-paper p-3 text-center text-ink shadow-[4px_4px_0_0_#0b0b0c] sm:w-40 sm:p-4"
+        className="absolute top-[22%] left-1/2 w-40 -translate-x-1/2 rounded-sm border-2 border-ink bg-paper p-3 text-center text-ink shadow-[4px_4px_0_0_#0b0b0c] sm:w-52 sm:p-4"
       >
         <motion.span
           aria-hidden="true"
           style={{ opacity: tear }}
           className="absolute -top-px -right-px h-7 w-7 bg-charcoal"
         />
-        <p className="font-display text-[11px] leading-tight sm:text-sm">GIVE THEM 15 SECONDS.</p>
-        <p className="mt-1 font-serif text-[9px] text-ink/60 sm:text-[10px]">
+        <p className="font-display text-[13px] leading-tight sm:text-base">GIVE THEM 15 SECONDS.</p>
+        <p className="mt-1.5 font-serif text-[11px] leading-snug text-ink/70 sm:text-xs">
           Don't honk. Don't block the crossing.
           <br />
           Don't park on the ramp.
@@ -80,7 +84,7 @@ function PosterScene({ progress }: SceneContext) {
           const from = REACT_START + i * REACT_STEP;
           return (
             <Beat key={r.reaction} progress={progress} from={from} to={from + REACT_STEP * 0.9} className="absolute inset-x-0 bottom-0">
-              <p className="font-serif text-sm text-paper/85 italic sm:text-base">A passerby {r.reaction}.</p>
+              <p className="font-serif text-lg text-paper/90 italic sm:text-2xl">A passerby {r.reaction}.</p>
             </Beat>
           );
         })}
@@ -88,14 +92,14 @@ function PosterScene({ progress }: SceneContext) {
           const from = TURN_START + i * TURN_STEP;
           return (
             <Beat key={line} progress={progress} from={from} to={from + TURN_STEP * 0.9} className="absolute inset-x-0 bottom-0">
-              <p className="font-display text-xl text-amber sm:text-3xl">{line}</p>
+              <p className="font-display text-2xl text-amber sm:text-4xl">{line}</p>
             </Beat>
           );
         })}
       </div>
 
       <Beat progress={progress} from={DONE_AT} className="absolute inset-x-0 bottom-[10%] z-10 px-6 text-center">
-        <p className="mx-auto max-w-md font-serif text-paper/85 italic">
+        <p className="mx-auto max-w-md font-serif text-lg text-paper/90 italic sm:text-xl">
           Nobody applauded. The street didn't change overnight.
           <br />
           But it noticed, for the first time, that it could.

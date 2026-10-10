@@ -3,6 +3,7 @@ import { StorySection, type SceneContext } from "../story/StorySection";
 import { Beat } from "../story/Beat";
 import { useDiscrete } from "../../hooks/useDiscrete";
 import { CIVIC_STATS, NOTEBOOK_PAGES } from "../../data/content";
+import { asset } from "../../utils/asset";
 import { progressIn } from "../../utils/motion";
 
 const PAGE_START = 0.04;
@@ -25,11 +26,22 @@ export default function Chapter06Notebook() {
   );
 }
 
-function NotebookScene({ progress }: SceneContext) {
+function NotebookScene({ progress, reduced }: SceneContext) {
   const page = useDiscrete(progress, pageAt);
+  // The desk Tara wrote her notes on, held behind the pages so the paper stays readable.
+  const zoom = useTransform(progress, [0, 1], reduced ? [1, 1] : [1.08, 1]);
 
   return (
-    <div className="absolute inset-0 bg-charcoal">
+    <div className="absolute inset-0 overflow-hidden bg-charcoal">
+      <motion.img
+        src={asset("images/numbers-notebook.jpg")}
+        alt="Tara's desk while she writes up her field notes: the crossing times she recorded by hand."
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ scale: zoom, filter: "grayscale(0.4) brightness(0.5) contrast(1.05)" }}
+      />
+      {/* A heavy veil, so the notebook pages and the tally keep their contrast on any screen. */}
+      <div className="absolute inset-0 bg-charcoal/70" />
+      <div className="absolute inset-0 bg-gradient-to-b from-charcoal/70 via-transparent to-charcoal/85" />
       <div className="grain absolute inset-0" />
 
       <div className="absolute top-16 left-5 font-display text-[11px] tracking-[0.3em] text-paper/60 sm:left-10">

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { asset } from "../utils/asset";
 
 const MASTER_LEVEL = 0.6;
+/** Background music sits well under the narration and the one-shot effects. */
+const MUSIC_LEVEL = 0.22;
+/** The single looping bed, resolved against the Vite base (works on GitHub Pages). */
+const MUSIC_SRC = asset("bgm.mp3");
 
 /**
  * Procedural Web Audio engine. Nothing is created until the visitor opts in
@@ -16,16 +21,103 @@ class SoundEngine {
   private brown: AudioBuffer | null = null;
   private ambient: { src: AudioBufferSourceNode; filter: BiquadFilterNode; gain: GainNode } | null = null;
   private enabled = false;
+  /** The one and only music element. Created on first use, reused for the whole visit. */
+  private music: HTMLAudioElement | null = null;
+  private musicOn = true;
+  /** Set if the file is missing or cannot be decoded, so we stop retrying. */
+  private musicBroken = false;
+  private gesture: (() => void) | null = null;
+  private gestureEvents: string[] = [];
 
   setEnabled(on: boolean): void {
     this.enabled = on;
     if (on) {
       const ctx = this.ensure();
       this.master?.gain.setTargetAtTime(MASTER_LEVEL, ctx.currentTime, 0.05);
+      this.playMusic();
     } else {
       if (this.ctx && this.master) this.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.03);
       this.stopAmbient();
+      this.pauseMusic();
     }
+  }
+
+  /**
+   * Turns the looping bed on or off without touching the sound effects. Turning
+   * it on while sound is enabled starts it immediately; the visitor's click on
+   * the toggle is itself the gesture browsers need, so playback normally begins
+   * without waiting for another interaction.
+   */
+  setMusicEnabled(on: boolean): void {
+    this.musicOn = on;
+    if (on) {
+      this.musicBroken = false;
+      if (this.enabled) this.playMusic();
+    } else {
+      this.pauseMusic();
+    }
+  }
+
+  /** Starts (or resumes) the single looping bed. Safe to call repeatedly. */
+  private playMusic(): void {
+    if (!this.enabled || !this.musicOn || this.musicBroken) return;
+    const element = this.ensureMusic();
+    const playing = element.play();
+    if (playing && typeof playing.catch === "function") {
+      // Autoplay was refused, or the file is not there yet: wait for a gesture.
+      playing.catch(() => this.armGesture());
+    }
+  }
+
+  private pauseMusic(): void {
+    this.releaseGesture();
+    if (!this.music) return;
+    this.music.pause();
+  }
+
+  /** Stops the bed and drops the gesture listener. Used when the app unmounts. */
+  stopMusic(): void {
+    this.pauseMusic();
+    if (!this.music) return;
+    this.music.src = "";
+    this.music.load();
+    this.music = null;
+  }
+
+  private ensureMusic(): HTMLAudioElement {
+    if (!this.music) {
+      const element = new Audio(MUSIC_SRC);
+      element.loop = true;
+      element.volume = MUSIC_LEVEL;
+      element.preload = "auto";
+      element.addEventListener("error", () => {
+        // Missing or unreadable file: stop trying so the story carries on silently.
+        this.musicBroken = true;
+        this.releaseGesture();
+      });
+      this.music = element;
+    }
+    return this.music;
+  }
+
+  /** One-shot listeners so a blocked autoplay starts on the visitor's next click or key. */
+  private armGesture(): void {
+    if (this.gesture || this.musicBroken || !this.musicOn || !this.enabled) return;
+    const start = () => {
+      this.releaseGesture();
+      this.playMusic();
+    };
+    this.gesture = start;
+    this.gestureEvents = ["pointerdown", "keydown", "touchstart"];
+    this.gestureEvents.forEach((name) => window.addEventListener(name, start, { passive: true }));
+  }
+
+  private releaseGesture(): void {
+    if (!this.gesture) return;
+    const listener = this.gesture;
+    this.gestureEvents.forEach((name) => window.removeEventListener(name, listener));
+    this.gesture = null;
+    this.gestureEvents = [];
   }
 
   honk(intensity = 1): void {
@@ -219,6 +311,9 @@ class SoundEngine {
 export interface SoundApi {
   enabled: boolean;
   toggle: () => void;
+  /** The looping background bed is on; it only sounds while sound itself is on. */
+  musicEnabled: boolean;
+  toggleMusic: () => void;
   honk: (intensity?: number) => void;
   beep: (freq?: number) => void;
   heartbeat: () => void;
@@ -235,7 +330,9 @@ const engine = new SoundEngine();
 /** Owns the sound toggle state. Action functions are stable across renders. */
 export function useSoundController(): SoundApi {
   const [enabled, setEnabled] = useState(false);
+  const [musicEnabled, setMusicEnabled] = useState(true);
   const enabledRef = useRef(false);
+  const musicRef = useRef(true);
 
   const toggle = useCallback(() => {
     const next = !enabledRef.current;
@@ -244,12 +341,29 @@ export function useSoundController(): SoundApi {
     setEnabled(next);
   }, []);
 
-  useEffect(() => () => engine.stopAmbient(), []);
+  const toggleMusic = useCallback(() => {
+    const next = !musicRef.current;
+    musicRef.current = next;
+    engine.setMusicEnabled(next);
+    setMusicEnabled(next);
+    // Asking for music is the opt-in gesture browsers require, so sound comes on with it.
+    if (next && !enabledRef.current) toggle();
+  }, [toggle]);
+
+  useEffect(
+    () => () => {
+      engine.stopAmbient();
+      engine.stopMusic();
+    },
+    []
+  );
 
   return useMemo<SoundApi>(
     () => ({
       enabled,
       toggle,
+      musicEnabled,
+      toggleMusic,
       honk: (intensity) => engine.honk(intensity),
       beep: (freq) => engine.beep(freq),
       heartbeat: () => engine.heartbeat(),
@@ -260,6 +374,6 @@ export function useSoundController(): SoundApi {
       setAmbientLevel: (level) => engine.setAmbientLevel(level),
       stopAmbient: () => engine.stopAmbient(),
     }),
-    [enabled, toggle]
+    [enabled, toggle, musicEnabled, toggleMusic]
   );
 }

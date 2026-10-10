@@ -33,18 +33,12 @@ html {
 /*
  * Slideshow Mode only: the story moves by stops, so native scrolling is paused.
  * Scroll Mode never sets this class, so ordinary page scrolling is unaffected.
+ * `overflow: hidden` still allows the programmatic scrolling the slideshow uses;
+ * it only stops the wheel and touch from skipping several stops at once.
  */
 html.presenting {
   overflow: hidden;
   overscroll-behavior: none;
-}
-
-/*
- * body's overflow-x would otherwise make body its own scroll container once the
- * viewport is locked, which silently breaks the sticky stages. Clip on the viewport instead.
- */
-html.presenting body {
-  overflow: visible;
 }
 
 body {
@@ -52,9 +46,28 @@ body {
   background: var(--color-ink);
   color: var(--color-paper);
   font-family: var(--font-serif);
-  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/*
+ * Keep sideways overflow (parallax pans, walkers leaving a lane) from creating a
+ * horizontal scrollbar — WITHOUT turning the element into a scroll container.
+ *
+ * This used to be `body { overflow-x: hidden }`. Per CSS Overflow, `hidden` on one
+ * axis makes `visible` compute to `auto` on the other, so <body> became a scroll
+ * container that never scrolls (the document does). Every `position: sticky` stage
+ * in StorySection then stuck to that dead box and rode away with the page: the
+ * opening scene left the viewport after one screen and the story was a black page.
+ *
+ * `clip` trims the same overflow without creating a scroll container, so the
+ * stages keep sticking to the viewport. It is applied to <main> (not <body>) so it
+ * can never clip the fixed chrome, and it is declared without a `hidden` fallback:
+ * on a browser without `clip` the worst case is a horizontal scrollbar, whereas a
+ * `hidden` fallback would bring the black screen back.
+ */
+#main {
+  overflow-x: clip;
 }
 
 ::selection {
