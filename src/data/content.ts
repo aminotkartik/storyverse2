@@ -35,7 +35,7 @@ export const PEDESTRIANS: Pedestrian[] = [
     label: "Person Carrying Groceries",
     desc: "Two bags, one shifting grip, one eye on the signal.",
     speed: 0.72,
-    outcome: "rushed",
+    outcome: "stranded",
   },
   {
     id: "parent",
@@ -43,7 +43,7 @@ export const PEDESTRIANS: Pedestrian[] = [
     label: "Parent & Child",
     desc: "A small hand held tightly. Small legs, small steps.",
     speed: 0.5,
-    outcome: "rushed",
+    outcome: "stranded",
   },
   {
     id: "elderly",

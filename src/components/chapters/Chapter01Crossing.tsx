@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChapterLabel, ContinueButton, SpeechBubble } from "../ui/Shared";
+import { ChapterLabel, ContinueButton, SpeechBubble, WalkingFigure } from "../ui/Shared";
 import type { SoundApi } from "../../hooks/useSound";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
 
@@ -55,8 +55,8 @@ export default function Chapter01Crossing({
   };
 
   const progress = (15 - count) / 15; // 0 -> 1
-  const taraLeft = 8 + progress * 78;
-  const daduLeft = 8 + progress * 78 * 0.58; // Dadu moves slower
+  const taraLeft = 16 + progress * 74; // starts ahead on the upper track, reaches 90%
+  const daduLeft = 5 + progress * 46; // starts behind on the lower track, stranded near middle (51%)
   const closeUp = phase === "counting" && count <= 5;
   const chaos = phase === "counting" && count <= 3 && count > 0;
   const borderInset = phase === "counting" ? Math.min(28, (15 - count) * 2) : 0;
@@ -90,35 +90,43 @@ export default function Chapter01Crossing({
         <div className="flex-1" />
 
         {/* crossing lane */}
-        <div className="relative mx-auto mb-[18%] w-[92%] max-w-3xl">
+        <div className="relative mx-auto mb-[16%] w-[92%] max-w-3xl">
           <div
-            className="h-14 w-full rounded-sm opacity-80 sm:h-20"
+            className="h-20 w-full rounded-sm opacity-80 sm:h-24"
             style={{
               backgroundImage:
                 "repeating-linear-gradient(90deg, rgba(243,237,226,0.9) 0 24px, transparent 24px 48px)",
             }}
           />
-          {/* Tara */}
+          {/* Tara (upper lane, slightly ahead) */}
           <div
-            className="absolute -top-14 flex flex-col items-center transition-all duration-700 ease-linear sm:-top-20"
+            className="
+              absolute -top-16 z-10 -translate-x-1/2 transition-all duration-700 ease-linear
+              sm:-top-22
+            "
             style={{ left: `${taraLeft}%` }}
           >
-            <div className="flex h-10 w-6 flex-col items-center sm:h-14 sm:w-8">
-              <div className="h-3 w-3 rounded-full bg-paper sm:h-4 sm:w-4" />
-              <div className="mt-0.5 h-7 w-4 rounded-sm bg-paper/90 sm:h-9 sm:w-6" />
-            </div>
-            <span className="mt-1 font-display text-[9px] tracking-widest text-paper/70">TARA</span>
+            <WalkingFigure
+              character="tara"
+              walking={phase === "counting" && count > 0}
+              progress={progress}
+              urgent={closeUp}
+            />
           </div>
-          {/* Dadu */}
+          {/* Dadu (lower lane, slightly behind so they never superimpose) */}
           <div
-            className="absolute -top-14 flex flex-col items-center transition-all duration-700 ease-linear sm:-top-20"
+            className="
+              absolute -top-8 z-20 -translate-x-1/2 transition-all duration-700 ease-linear
+              sm:-top-12
+            "
             style={{ left: `${daduLeft}%` }}
           >
-            <div className="flex h-10 w-6 flex-col items-center sm:h-14 sm:w-8">
-              <div className="h-3 w-3 rounded-full bg-amber sm:h-4 sm:w-4" />
-              <div className="mt-0.5 h-7 w-4 rounded-sm bg-amber/80 sm:h-9 sm:w-6" />
-            </div>
-            <span className="mt-1 font-display text-[9px] tracking-widest text-amber/80">DADU</span>
+            <WalkingFigure
+              character="dadu"
+              walking={phase === "counting" && count > 0}
+              progress={progress}
+              urgent={closeUp}
+            />
           </div>
         </div>
 

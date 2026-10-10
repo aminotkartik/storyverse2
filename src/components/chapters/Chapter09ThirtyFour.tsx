@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type TouchEventHandler, type WheelEventHandler } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChapterLabel, ContinueButton } from "../ui/Shared";
+import { ChapterLabel, ContinueButton, WalkingFigure } from "../ui/Shared";
 import type { SoundApi } from "../../hooks/useSound";
 
 type Phase = "ready" | "crossing" | "end";
@@ -56,8 +56,8 @@ export default function Chapter09ThirtyFour({ onNext, sound }: { onNext: () => v
     };
   }, [phase]);
 
-  const taraLeft = 8 + progress * 80;
-  const daduLeft = 8 + progress * 80 * 0.85;
+  const taraLeft = 16 + progress * 75;
+  const daduLeft = 5 + progress * 75;
   const remaining = Math.max(0, 34 - Math.round(progress * 34));
 
   return (
@@ -85,33 +85,33 @@ export default function Chapter09ThirtyFour({ onNext, sound }: { onNext: () => v
       <div className="relative z-10 flex h-full w-full flex-col">
         <div className="flex-1" />
         {phase !== "ready" && (
-          <div className="relative mx-auto mb-[18%] w-[92%] max-w-3xl">
+          <div className="relative mx-auto mb-[16%] w-[92%] max-w-3xl">
             <div
-              className="h-14 w-full rounded-sm opacity-80 sm:h-20"
+              className="h-20 w-full rounded-sm opacity-80 sm:h-24"
               style={{
                 backgroundImage:
                   "repeating-linear-gradient(90deg, rgba(243,237,226,0.9) 0 24px, transparent 24px 48px)",
               }}
             />
             <div
-              className="absolute -top-14 flex flex-col items-center sm:-top-20"
+              className="absolute -top-16 z-10 -translate-x-1/2 transition-[left] duration-150 ease-out sm:-top-22"
               style={{ left: `${taraLeft}%` }}
             >
-              <div className="flex h-10 w-6 flex-col items-center sm:h-14 sm:w-8">
-                <div className="h-3 w-3 rounded-full bg-paper sm:h-4 sm:w-4" />
-                <div className="mt-0.5 h-7 w-4 rounded-sm bg-paper/90 sm:h-9 sm:w-6" />
-              </div>
-              <span className="mt-1 font-display text-[9px] tracking-widest text-paper/70">TARA</span>
+              <WalkingFigure
+                character="tara"
+                walking={phase === "crossing" && progress < 1}
+                progress={progress}
+              />
             </div>
             <div
-              className="absolute -top-14 flex flex-col items-center sm:-top-20"
+              className="absolute -top-8 z-20 -translate-x-1/2 transition-[left] duration-150 ease-out sm:-top-12"
               style={{ left: `${daduLeft}%` }}
             >
-              <div className="flex h-10 w-6 flex-col items-center sm:h-14 sm:w-8">
-                <div className="h-3 w-3 rounded-full bg-amber sm:h-4 sm:w-4" />
-                <div className="mt-0.5 h-7 w-4 rounded-sm bg-amber/80 sm:h-9 sm:w-6" />
-              </div>
-              <span className="mt-1 font-display text-[9px] tracking-widest text-amber/80">DADU</span>
+              <WalkingFigure
+                character="dadu"
+                walking={phase === "crossing" && progress < 1}
+                progress={progress}
+              />
             </div>
           </div>
         )}
