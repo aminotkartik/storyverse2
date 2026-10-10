@@ -37,11 +37,11 @@ function IntroScene({ progress, reduced }: SceneContext) {
     }
   });
 
-  const photo = useTransform(progress, [0.12, 0.5], [0, 0.42]);
+  const photo = useTransform(progress, [0, 0.12, 0.5], [0.16, 0.2, 0.42]);
   const photoScale = useTransform(progress, [0, 0.8], reduced ? [1, 1] : [1.14, 1.04]);
-  const dark = useTransform(progress, [0, 0.2], [0.96, 0.78]);
+  const dark = useTransform(progress, [0, 0.2], [0.9, 0.78]);
   const tension = useTransform(progress, [0.45, 0.85], [0, 0.9]);
-  const signal = useTransform(progress, [0, 0.1, 0.2], [0.1, 0.55, 1]);
+  const signal = useTransform(progress, [0, 0.1, 0.2], [0.45, 0.7, 1]);
   const redGlow = useTransform(progress, [0.6, 0.8], [0, 0.25]);
 
   return (

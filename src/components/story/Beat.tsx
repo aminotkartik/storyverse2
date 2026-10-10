@@ -21,8 +21,15 @@ interface BeatProps {
 export function Beat({ progress, from, to, rise = 14, className, children }: BeatProps) {
   const end = to ?? 2;
   const fade = Math.min(0.035, (end - from) / 4);
-  const opacity = useTransform(progress, [from, from + fade, end - fade, end], [0, 1, 1, 0]);
-  const y = useTransform(progress, [from, from + fade], [rise, 0]);
+  // An element that starts at the very top of the story is visible from the first frame,
+  // so the opening never shows an empty black screen.
+  const startsVisible = from <= 0;
+  const opacity = useTransform(
+    progress,
+    startsVisible ? [0, end - fade, end] : [from, from + fade, end - fade, end],
+    startsVisible ? [1, 1, 0] : [0, 1, 1, 0]
+  );
+  const y = useTransform(progress, startsVisible ? [0, 1] : [from, from + fade], startsVisible ? [0, 0] : [rise, 0]);
   return (
     <motion.div style={{ opacity, y }} className={cn(className)}>
       {children}
