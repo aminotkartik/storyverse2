@@ -30,6 +30,9 @@ export interface PresentationApi {
   blockedMessage: string | null;
   canGoPrevious: boolean;
   isLast: boolean;
+  /** Incremented on each navigation, used to trigger cinematic transitions. */
+  transitionKey: number;
+  direction: "next" | "previous";
   enter: () => void;
   exit: () => void;
   toggle: () => void;
@@ -61,9 +64,11 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
   const [index, setIndex] = useState(0);
   const indexRef = useRef(0);
   const choices = useChainChoices();
+  const [transitionKey, setTransitionKey] = useState(0);
+  const [direction, setDirection] = useState<"next" | "previous">("next");
 
   const moveTo = useCallback(
-    (target: number) => {
+    (target: number, dir: "next" | "previous" = "next") => {
       const i = clampIndex(target);
       const from = STOPS[indexRef.current];
       const to = STOPS[i];
@@ -72,6 +77,8 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       scrollToStop(to, instant ? "auto" : "smooth");
       indexRef.current = i;
       setIndex(i);
+      setDirection(dir);
+      setTransitionKey((k) => k + 1);
     },
     [reduced]
   );
@@ -90,17 +97,23 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
     const current = STOPS[indexRef.current];
     // Checked against the live store so the gate never uses a stale render.
     if (current.requires && !isRequirementMet(current.requires, getChainChoices())) return;
-    moveTo(indexRef.current + 1);
+    moveTo(indexRef.current + 1, "next");
   }, [moveTo]);
 
-  const previous = useCallback(() => moveTo(indexRef.current - 1), [moveTo]);
+  const previous = useCallback(() => moveTo(indexRef.current - 1, "previous"), [moveTo]);
 
-  const goToIndex = useCallback((i: number) => moveTo(i), [moveTo]);
+  const goToIndex = useCallback((i: number) => {
+    const dir = i > indexRef.current ? "next" : "previous";
+    moveTo(i, dir);
+  }, [moveTo]);
 
   const goToSection = useCallback(
     (sectionId: string) => {
       const i = STOPS.findIndex((s) => s.sectionId === sectionId);
-      if (i >= 0) moveTo(i);
+      if (i >= 0) {
+        const dir = i > indexRef.current ? "next" : "previous";
+        moveTo(i, dir);
+      }
     },
     [moveTo]
   );
@@ -178,6 +191,8 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       blockedMessage: blocked ? REQUIREMENT_MESSAGE : null,
       canGoPrevious: index > 0,
       isLast: index === LAST,
+      transitionKey,
+      direction,
       enter,
       exit,
       toggle,
@@ -186,7 +201,7 @@ export function PresentationProvider({ children }: { children: ReactNode }) {
       goToIndex,
       goToSection,
     };
-  }, [active, index, choices, enter, exit, toggle, next, previous, goToIndex, goToSection]);
+  }, [active, index, choices, transitionKey, direction, enter, exit, toggle, next, previous, goToIndex, goToSection]);
 
   return <PresentationContext.Provider value={value}>{children}</PresentationContext.Provider>;
 }

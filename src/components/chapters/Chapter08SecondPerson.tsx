@@ -1,6 +1,7 @@
 import { motion, useTransform, type MotionValue } from "framer-motion";
 import { StorySection, type SceneContext } from "../story/StorySection";
 import { Beat } from "../story/Beat";
+import { useDiscrete } from "../../hooks/useDiscrete";
 import { setChainChoice, useChainChoices, type ChainChoice } from "../../state/chainChoices";
 import { useSound } from "../../context/SoundContext";
 import { CHAIN_STEPS } from "../../data/content";
@@ -10,9 +11,18 @@ type Choice = ChainChoice;
 
 const FIRST_AT = 0.08;
 const STEP_SPAN = 0.24;
+const STEP_WINDOW = 0.21;
 const FINAL_AT = 0.86;
 
 const stepStart = (i: number): number => FIRST_AT + i * STEP_SPAN;
+
+/** Index of the step currently in front of the reader, or -1. */
+function activeStepAt(v: number): number {
+  for (let i = CHAIN_STEPS.length - 1; i >= 0; i--) {
+    if (v >= stepStart(i) && v < stepStart(i) + STEP_WINDOW) return i;
+  }
+  return -1;
+}
 
 export default function Chapter08SecondPerson() {
   return (
@@ -22,13 +32,9 @@ export default function Chapter08SecondPerson() {
   );
 }
 
-/**
- * Three civic choices. Buttons stay enabled as long as the step is visible
- * (within the Beat's fade range), not just in a narrow "active" window.
- * Choices persist in the shared store and remain visible after scrolling past.
- */
 function ChoiceScene({ progress }: SceneContext) {
   const sound = useSound();
+  const active = useDiscrete(progress, activeStepAt);
   const choices = useChainChoices();
 
   const choose = (i: number, choice: Choice) => {
@@ -51,6 +57,7 @@ function ChoiceScene({ progress }: SceneContext) {
             from={from}
             progress={progress}
             choice={choices[i]}
+            isActive={active === i}
             onChoose={choose}
           />
         );
@@ -89,6 +96,7 @@ function ChoiceStep({
   from,
   progress,
   choice,
+  isActive,
   onChoose,
 }: {
   step: (typeof CHAIN_STEPS)[number];
@@ -96,6 +104,7 @@ function ChoiceStep({
   from: number;
   progress: MotionValue<number>;
   choice: Choice | undefined;
+  isActive: boolean;
   onChoose: (i: number, choice: Choice) => void;
 }) {
   // Fade in when the step appears, fade out when the next step starts
@@ -111,7 +120,10 @@ function ChoiceStep({
 
   return (
     <motion.div
-      style={{ opacity }}
+      style={{
+        opacity,
+        pointerEvents: isActive ? "auto" : "none",
+      }}
       className="absolute inset-x-5 top-1/2 mx-auto max-w-lg -translate-y-1/2 text-center"
     >
       <div className="flex flex-col items-center gap-6">
