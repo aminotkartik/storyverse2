@@ -29,35 +29,27 @@ export default function App() {
   const reduced = useReducedMotion();
 
   const goNext = useCallback(() => {
-    setStage((s) => {
-      if (s === "chapter") {
-        if (chapterIndex < CHAPTERS.length) {
-          setChapterIndex((i) => i + 1);
-          return "chapter";
-        }
-        return "ending";
+    if (stage === "chapter") {
+      if (chapterIndex < CHAPTERS.length) {
+        setChapterIndex((i) => i + 1);
+      } else {
+        setStage("ending");
       }
-      if (s === "ending") return "final";
-      return s;
-    });
-  }, [chapterIndex]);
+    } else if (stage === "ending") {
+      setStage("final");
+    }
+  }, [stage, chapterIndex]);
 
   const goPrev = useCallback(() => {
-    setStage((s) => {
-      if (s === "chapter") {
-        if (chapterIndex > 1) {
-          setChapterIndex((i) => i - 1);
-          return "chapter";
-        }
-        return s;
+    if (stage === "chapter") {
+      if (chapterIndex > 1) {
+        setChapterIndex((i) => i - 1);
       }
-      if (s === "ending") {
-        setChapterIndex(CHAPTERS.length);
-        return "chapter";
-      }
-      return s;
-    });
-  }, [chapterIndex]);
+    } else if (stage === "ending") {
+      setChapterIndex(CHAPTERS.length);
+      setStage("chapter");
+    }
+  }, [stage, chapterIndex]);
 
   const jumpTo = useCallback((n: number) => {
     if (n <= CHAPTERS.length) {
@@ -75,14 +67,12 @@ export default function App() {
       if (tag === "INPUT" || tag === "TEXTAREA") return;
 
       if (e.key.toLowerCase() === "p") {
-        setPresentationMode((p) => {
-          const turningOn = !p;
-          if (turningOn) {
-            setStage("chapter");
-            setChapterIndex(1);
-          }
-          return !p;
-        });
+        const turningOn = !presentationMode;
+        setPresentationMode(turningOn);
+        if (turningOn) {
+          setStage("chapter");
+          setChapterIndex(1);
+        }
       } else if (e.key.toLowerCase() === "e") {
         setPresentationMode(false);
         setStage("loading");
@@ -94,7 +84,7 @@ export default function App() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [stage, goNext, goPrev]);
+  }, [stage, presentationMode, goNext, goPrev]);
 
   const chapterTitle = useMemo(
     () => CHAPTERS.find((c) => c.id === chapterIndex)?.title ?? "",

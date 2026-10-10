@@ -1,34 +1,44 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChapterLabel, ContinueButton, FadeIn } from "../ui/Shared";
+import {
+  ChapterLabel,
+  ContinueButton,
+  FadeIn,
+  PedestrianFigure,
+  type PedestrianType,
+} from "../ui/Shared";
 import { PEDESTRIANS, type Pedestrian } from "../../data/content";
 import type { SoundApi } from "../../hooks/useSound";
 
+const SIGNAL_SECONDS = 15;
 const SIM_MS = 3600;
 
 export default function Chapter02Pace({ onNext, sound }: { onNext: () => void; sound: SoundApi }) {
   const [selected, setSelected] = useState<Pedestrian | null>(null);
-  const [timer, setTimer] = useState(15);
+  const [timer, setTimer] = useState(SIGNAL_SECONDS);
   const [progressPct, setProgressPct] = useState(0);
   const [result, setResult] = useState<"running" | "safe" | "stranded" | null>(null);
   const [viewed, setViewed] = useState<Set<string>>(new Set());
   const rafRef = useRef<number | null>(null);
 
   const run = (p: Pedestrian) => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
     setSelected(p);
     setResult("running");
-    setTimer(15);
+    setTimer(SIGNAL_SECONDS);
     setProgressPct(0);
     sound.beep(900);
-    const finishesInTime = p.outcome !== "stranded";
-    const target = finishesInTime ? 100 : Math.min(96, (15 / p.seconds) * 100);
+
+    const finishesInTime = p.seconds <= SIGNAL_SECONDS && p.outcome !== "stranded";
+    const elapsedSeconds = finishesInTime ? p.seconds : SIGNAL_SECONDS;
+    const target = finishesInTime ? 100 : Math.min(96, (SIGNAL_SECONDS / p.seconds) * 100);
     const start = performance.now();
-    const duration = finishesInTime ? SIM_MS * Math.max(0.55, Math.min(1, 15 / p.seconds)) : SIM_MS;
+    const duration = SIM_MS * (elapsedSeconds / SIGNAL_SECONDS);
 
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
       setProgressPct(t * target);
-      setTimer(Math.max(0, Math.round(15 - t * 15)));
+      setTimer(Math.max(0, Math.round(SIGNAL_SECONDS - t * elapsedSeconds)));
       if (t < 1) {
         rafRef.current = requestAnimationFrame(step);
       } else {
@@ -82,27 +92,37 @@ export default function Chapter02Pace({ onNext, sound }: { onNext: () => void; s
               {selected ? selected.desc : "Select a pedestrian above to begin."}
             </span>
             <span
-              className={`font-display text-3xl ${timer <= 5 ? "text-danger" : "text-paper"}`}
+              className={`font-display text-3xl ${
+                result === "stranded" || (selected && selected.seconds > SIGNAL_SECONDS && timer <= 5)
+                  ? "text-danger"
+                  : "text-paper"
+              }`}
             >
               {String(timer).padStart(2, "0")}
             </span>
           </div>
 
-          <div className="relative h-16 w-full overflow-hidden rounded-sm bg-ink/60">
+          <div className="relative h-28 w-full overflow-hidden rounded-sm bg-ink/60 sm:h-32">
+            {/* Zebra stripes along the road surface */}
             <div
-              className="absolute inset-0 opacity-50"
+              className="absolute inset-x-0 bottom-2 h-14 opacity-50 sm:h-16"
               style={{
                 backgroundImage:
                   "repeating-linear-gradient(90deg, rgba(243,237,226,0.8) 0 18px, transparent 18px 36px)",
               }}
             />
             {selected && (
-              <motion.div
-                className={`absolute top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border-2 ${
-                  result === "stranded" ? "border-danger bg-danger/60 animate-pulse-soft" : "border-paper bg-paper"
-                }`}
-                style={{ left: `calc(${progressPct}% - 12px)` }}
-              />
+              <div
+                className="absolute bottom-3 -translate-x-1/2"
+                style={{ left: `${6 + (progressPct / 100) * 86}%` }}
+              >
+                <PedestrianFigure
+                  type={selected.id as PedestrianType}
+                  walking={result === "running"}
+                  progress={progressPct}
+                  stranded={result === "stranded"}
+                />
+              </div>
             )}
           </div>
 
