@@ -4,6 +4,7 @@ import { Beat } from "../story/Beat";
 import { useDiscrete } from "../../hooks/useDiscrete";
 import { CIVIC_STATS, NOTEBOOK_PAGES } from "../../data/content";
 import { progressIn } from "../../utils/motion";
+import { asset } from "../../utils/asset";
 
 const PAGE_START = 0.04;
 const PAGE_STEP = 0.12;
@@ -25,14 +26,23 @@ export default function Chapter06Notebook() {
   );
 }
 
-function NotebookScene({ progress }: SceneContext) {
+function NotebookScene({ progress, reduced }: SceneContext) {
   const page = useDiscrete(progress, pageAt);
+
+  const bgScale = useTransform(progress, [0, 1], reduced ? [1, 1] : [1.04, 1.0]);
 
   return (
     <div className="absolute inset-0 bg-charcoal">
+      <motion.img
+        src={asset("images/chapter-06-numbers.png")}
+        alt="Chapter 06 — The Numbers: a weathered clipboard with field notes, a bar chart, and a pen."
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ scale: bgScale, filter: "brightness(0.55)" }}
+      />
+      <div className="absolute inset-0 bg-ink/40" />
       <div className="grain absolute inset-0" />
 
-      <div className="absolute top-16 left-5 font-display text-[11px] tracking-[0.3em] text-paper/60 sm:left-10">
+      <div className="absolute top-16 left-5 font-display text-[11px] tracking-[0.3em] text-paper/80 sm:left-10 sm:text-xs">
         FIELD NOTES {String(Math.max(0, page + 1)).padStart(2, "0")} / {String(NOTEBOOK_PAGES.length).padStart(2, "0")}
       </div>
 

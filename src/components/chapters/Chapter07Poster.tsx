@@ -55,7 +55,9 @@ function PosterScene({ progress }: SceneContext) {
       <div className="grain absolute inset-0" />
 
       <Beat progress={progress} from={0} to={0.06} className="absolute inset-x-0 top-20 px-6 text-center">
-        <p className="font-serif text-sm tracking-widest text-paper/70 uppercase">Scroll to put the notice up</p>
+        <p className="font-serif text-base tracking-widest text-paper/80 uppercase sm:text-lg md:text-xl">
+          Scroll to put the notice up
+        </p>
       </Beat>
 
       <motion.div
@@ -82,7 +84,7 @@ function PosterScene({ progress }: SceneContext) {
           const from = REACT_START + i * REACT_STEP;
           return (
             <Beat key={r.reaction} progress={progress} from={from} to={from + REACT_STEP * 0.9} className="absolute inset-x-0 bottom-0">
-              <p className="font-serif text-sm text-paper/85 italic sm:text-base">A passerby {r.reaction}.</p>
+              <p className="font-serif text-base text-paper/90 italic sm:text-lg md:text-xl">A passerby {r.reaction}.</p>
             </Beat>
           );
         })}
@@ -97,7 +99,7 @@ function PosterScene({ progress }: SceneContext) {
       </div>
 
       <Beat progress={progress} from={DONE_AT} className="absolute inset-x-0 bottom-[10%] z-10 px-6 text-center">
-        <p className="mx-auto max-w-md font-serif text-paper/85 italic">
+        <p className="mx-auto max-w-md font-serif text-lg text-paper/90 italic sm:text-xl md:text-2xl">
           Nobody applauded. The street didn't change overnight.
           <br />
           But it noticed, for the first time, that it could.
