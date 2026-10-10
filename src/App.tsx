@@ -14,6 +14,7 @@ import Chapter10City from "./components/chapters/Chapter10City";
 import Ending from "./components/Ending";
 import FinalScreen from "./components/FinalScreen";
 import PresentationBar from "./components/presentation/PresentationBar";
+import SceneTransitionOverlay from "./components/presentation/SceneTransitionOverlay";
 import { SoundProvider, useSound } from "./context/SoundContext";
 import { PresentationProvider, useSlideshow } from "./context/PresentationContext";
 import { useActiveSectionId } from "./hooks/useInView";
@@ -74,6 +75,10 @@ function StoryShell() {
         <FinalScreen />
       </main>
       <PresentationBar />
+      <SceneTransitionOverlay
+        transitionKey={slideshow.transitionKey}
+        direction={slideshow.direction}
+      />
     </>
   );
 }

@@ -60,19 +60,21 @@ function PosterScene({ progress }: SceneContext) {
 
       <motion.div
         style={{ y: drop, opacity: dropOpacity }}
-        className="absolute top-[22%] left-1/2 w-32 -translate-x-1/2 rounded-sm border-2 border-ink bg-paper p-3 text-center text-ink shadow-[4px_4px_0_0_#0b0b0c] sm:w-40 sm:p-4"
+        className="absolute top-[14%] left-1/2 -translate-x-1/2"
       >
+        <img
+          src={asset("images/poster.png")}
+          alt="Campaign poster: Tara and Dadu walking together on a crossing under the headline 'Give Them 15 Seconds', with three panels below reading 'Don't Honk.', 'Don't Block the Crossing.', and 'Don't Park on the Ramp.'"
+          width={420}
+          height={560}
+          loading="lazy"
+          className="h-auto w-44 rounded-sm border-2 border-ink object-cover shadow-[4px_4px_0_0_#0b0b0c] sm:w-56 md:w-64"
+        />
         <motion.span
           aria-hidden="true"
           style={{ opacity: tear }}
-          className="absolute -top-px -right-px h-7 w-7 bg-charcoal"
+          className="absolute -top-px -right-px h-8 w-8 bg-charcoal sm:h-10 sm:w-10"
         />
-        <p className="font-display text-[11px] leading-tight sm:text-sm">GIVE THEM 15 SECONDS.</p>
-        <p className="mt-1 font-serif text-[9px] text-ink/60 sm:text-[10px]">
-          Don't honk. Don't block the crossing.
-          <br />
-          Don't park on the ramp.
-        </p>
       </motion.div>
 
       <div className="absolute inset-x-0 bottom-[12%] z-10 h-16 px-6 text-center">
