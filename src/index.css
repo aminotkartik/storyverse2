@@ -1,0 +1,217 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Anton", "Bebas Neue", sans-serif;
+  --font-hand: "Caveat", cursive;
+  --font-serif: "Source Serif 4", Georgia, serif;
+
+  --color-ink: #0b0b0c;
+  --color-paper: #f3ede2;
+  --color-paper-warm: #ede4d3;
+  --color-charcoal: #1c1b1a;
+  --color-grey: #8a847a;
+  --color-danger: #c73e2d;
+  --color-amber: #d99a4e;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-serif);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-danger);
+  color: var(--color-paper);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #3a3733;
+  border-radius: 4px;
+}
+
+/* Focus visibility for accessibility */
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+.font-hand {
+  font-family: var(--font-hand);
+}
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+/* Grain overlay via SVG noise */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size: 180px 180px;
+}
+
+/* Halftone dot overlay */
+.halftone {
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.9) 1px, transparent 1.4px);
+  background-size: 5px 5px;
+}
+.halftone-light {
+  background-image: radial-gradient(circle, rgba(243, 237, 226, 0.5) 1px, transparent 1.4px);
+  background-size: 6px 6px;
+}
+
+/* Speed lines */
+.speed-lines {
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0.07) 0deg 1.2deg,
+    transparent 1.2deg 6deg
+  );
+}
+
+.panel-border {
+  border: 2px solid var(--color-ink);
+  box-shadow: 0 0 0 1px rgba(243, 237, 226, 0.08);
+}
+
+.ink-frame {
+  position: relative;
+}
+.ink-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 3px solid currentColor;
+  mask-image: linear-gradient(black, black);
+}
+
+/* Manga style cursor in interactive chapters */
+.manga-cursor {
+  cursor:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'><circle cx='14' cy='14' r='9' fill='none' stroke='white' stroke-width='2'/><circle cx='14' cy='14' r='2' fill='white'/></svg>")
+      14 14,
+    crosshair;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+.animate-blink {
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.7;
+  }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 1.8s ease-in-out infinite;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-1px, 1px);
+  }
+  40% {
+    transform: translate(1px, -1px);
+  }
+  60% {
+    transform: translate(-1px, -1px);
+  }
+  80% {
+    transform: translate(1px, 1px);
+  }
+}
+.animate-shake {
+  animation: shake 0.25s linear infinite;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: rise-in 0.6s ease forwards;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
